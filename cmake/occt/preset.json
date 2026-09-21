@@ -1,0 +1,69 @@
+{
+	"version": 10,
+	"cmakeMinimumRequired": {
+		"major": 3,
+		"minor": 23,
+		"patch": 0
+	},
+	"configurePresets": [
+		{
+			"name": "release",
+			"displayName": "OCCT 8.0.1",
+			"description": "Release build using Ninja generator",
+			"generator": "Ninja",
+			"cacheVariables": {
+				"CMAKE_C_COMPILER_LAUNCHER": "ccache",
+				"CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
+				"CMAKE_BUILD_TYPE": "Release",
+				"BUILD_CPP_STANDARD": "C++26",
+				"BUILD_RESOURCES": "ON",
+				"BUILD_USE_PCH": "ON",
+				"BUILD_USE_VCPKG": "OFF",
+				"USE_TBB": "ON",
+				"USE_MMGR_TYPE": "TBB",
+				"USE_FREEIMAGE": "ON",
+				"USE_FREETYPE": "ON",
+				"USE_RAPIDJSON": "ON",
+				"USE_OPENGL": "ON",
+				"USE_DRACO": "ON",
+				"USE_EIGEN": "ON",
+				"USE_TK": "ON",
+				"USE_XLIB": "ON",
+				"USE_VTK": "OFF",
+				"USE_FFMPEG": "OFF",
+				"USE_GLES2": "OFF",
+				"USE_OPENVR": "OFF",
+				"INSTALL_FREEIMAGE": "ON",
+				"INSTALL_FREETYPE": "ON",
+				"INSTALL_RAPIDJSON": "ON",
+				"INSTALL_TBB": "ON",
+				"INSTALL_TCL": "ON",
+				"INSTALL_TK": "ON"
+			},
+			"$comment": {
+				"INSTALL_VTK": "OFF",
+				"3RDPARTY_VTK_INCLUDE_DIR": "/usr/include",
+				"3RDPARTY_VTK_LIBRARY_DIR": "/usr/lib/vtk",
+				"3RDPARTY_VTK_LIBRARY_CommonCore": "/usr/lib/libvtkCommonCore.so",
+				"3RDPARTY_FREEIMAGE_INCLUDE_DIR": "/usr/include",
+				"3RDPARTY_FREEIMAGE_LIBRARY_DIR_freeimage": "/usr/lib",
+				"3RDPARTY_FREEIMAGE_LIBRARY_freeimage": "/usr/lib/libfreeimage.so",
+				"3RDPARTY_FREETYPE_INCLUDE_DIR_freetype2": "/usr/include/freetype2",
+				"3RDPARTY_FREETYPE_INCLUDE_DIR_ft2build": "/usr/include/freetype2",
+				"3RDPARTY_FREETYPE_LIBRARY": "/usr/lib/libfreetype.so",
+				"3RDPARTY_FREETYPE_LIBRARY_DIR": "/usr/lib",
+				"3RDPARTY_RAPIDJSON_INCLUDE_DIR": "/usr/include",
+				"3RDPARTY_TBBMALLOC_LIBRARY": "/usr/lib/libtbbmalloc.so.2.19",
+				"3RDPARTY_TBBMALLOC_LIBRARY_DIR": "/usr/lib",
+				"3RDPARTY_TBB_INCLUDE_DIR": "/usr/include",
+				"3RDPARTY_TBB_LIBRARY": "/usr/lib/libtbb.so.12.19",
+				"3RDPARTY_TBB_LIBRARY_DIR": "/usr/lib",
+				"3RDPARTY_TCL_INCLUDE_DIR": "/usr/include",
+				"3RDPARTY_TCL_LIBRARY": "/usr/lib/libtcl.so",
+				"3RDPARTY_TCL_LIBRARY_DIR": "/usr/lib",
+				"3RDPARTY_TK_INCLUDE_DIR": "/usr/include",
+				"3RDPARTY_TK_LIBRARY": "/usr/lib/libtk.so"
+			}
+		}
+	]
+}

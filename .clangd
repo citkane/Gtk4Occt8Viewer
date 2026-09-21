@@ -1,0 +1,13 @@
+Diagnostics:
+    Includes:
+        IgnoreHeader:
+            - macros.h
+---
+If:
+    PathMatch: .*/Viewer.hpp
+
+Diagnostics:
+    Includes:
+        IgnoreHeader:
+            - cstdlib
+            - cstring
