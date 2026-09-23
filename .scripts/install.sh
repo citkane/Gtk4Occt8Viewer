@@ -8,7 +8,7 @@ source_os() {
         source /etc/os-release
         DISTRO="${ID_LIKE:-$ID}"
         if [[ ! -f "$THIS_DIR/os/linux/$DISTRO.sh" ]]; then
-            todo "Linux $distro"
+            todo "Linux $DISTRO"
             return 1
         fi
         source "$THIS_DIR/os/linux/$DISTRO.sh"
