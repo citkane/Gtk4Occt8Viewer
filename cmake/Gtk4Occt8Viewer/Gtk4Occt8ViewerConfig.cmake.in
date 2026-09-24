@@ -27,6 +27,14 @@ if(@PROJECT_NAME@_USE_STATIC)
     # )
 else()
     set(LIB_SHARED ${LIB_LOC}/lib@PROJECT_NAME@${CMAKE_SHARED_LIBRARY_SUFFIX})
+    set(LINK_OPTS
+        "-Wl"
+        "--disable-new-dtags"
+        "-rpath"
+        ${@PROJECT_NAME@_LIBDIR}:${OpenCASCADE_LIBRARY_DIR}
+    )
+    string(REPLACE ";" "," LINK_OPTS_JOINED "${LINK_OPTS}")
+
     add_library(@PROJECT_NAME@ SHARED IMPORTED)
     set_target_properties(
         @PROJECT_NAME@
@@ -34,9 +42,7 @@ else()
             IMPORTED_IMPLIB ${LIB_SHARED}
             IMPORTED_LOCATION ${LIB_SHARED}
             INTERFACE_INCLUDE_DIRECTORIES ${@PROJECT_NAME@_INCDIR}
-            # INTERFACE_LINK_LIBRARIES "${LIBS}"
-            INTERFACE_LINK_OPTIONS
-                "-Wl,--disable-new-dtags,-rpath,${@PROJECT_NAME@_LIBDIR}:${OpenCASCADE_LIBRARY_DIR}"
+            INTERFACE_LINK_OPTIONS "${LINK_OPTS_JOINED}"
     )
 endif()
 
