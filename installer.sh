@@ -78,11 +78,9 @@ run() {
         gles) use_gles=USE_GLES=1 ;;
         esac
     done
-
     [[ -v 'x11[0]' && -v use_gles ]] && x11=(GDK_BACKEND=x11)
     [[ -v use_gles ]] && gtk_env+=($use_gles)
     [[ -v 'x11[0]' ]] && gtk_env+=("${x11[@]:-}")
-
     source env.sh # The OCCT env script - required
     if ((${#gtk_env[@]} > 0)); then
         env "${gtk_env[@]}" "${command[@]}"
@@ -185,7 +183,6 @@ while read -r -a args; do
         example) install example cd configure build install ;;
         peel) install peel clone build_meson install ;;
         occt) install occt clone prepare build install "${args[2]:-}" ;;
-        # occt) install occt clone prepare build "${args[2]:-}" ;;
         *) print_help "Invalid install input" ;;
         esac
         ;;

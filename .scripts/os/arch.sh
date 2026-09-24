@@ -4,6 +4,7 @@ PCKGS=(
     python
     cmake
     meson
+    gdb
     git
     ninja
     ccache
