@@ -2,13 +2,9 @@
 #include "gtk/Gtk_FrameBuffer.hpp"
 #include "gtk/input_map.hpp"
 
-#include <GL/gl.h>
-
 #include <AIS_AnimationCamera.hxx>
 #include <AIS_InteractiveContext.hxx>
 #include <Graphic3d_DiagnosticInfo.hxx>
-// #include <Message.hxx>
-// #include <Message_Messenger.hxx>
 #include <Quantity_NameOfColor.hxx>
 
 IMPLEMENT_STANDARD_RTTIEXT(Gtk4::Occt8::ViewerPrinter, Message_Printer)
@@ -20,9 +16,9 @@ void Viewer::init(Class *) {
     win_native = 0;
     prev_pix_r = 0;
     occ_pix_r = 1;
-    g_message(USE_WAYLAND ? "Use Wayland" : "No use Wayland");
-    g_message(USE_GLES ? "Use GLES" : "No use GLES");
-    g_message(USE_X11 ? "Use X11" : "No use X11");
+    g_print("%s\n", RUN_WAYLAND ? "Use Wayland" : "No use Wayland");
+    g_print("%s\n", USE_GLES ? "Use GLES" : "No use GLES");
+    g_print("%s\n", RUN_X11 ? "Use X11" : "No use X11");
     set_allowed_apis(USE_GLES ? Gdk::GLAPI::GLES
                               : Gdk::GLAPI::GL); // requires GTK4 v4.12+
     set_can_focus(true);
@@ -46,7 +42,6 @@ void Viewer::init(Class *) {
 
     connect_resize([this](Gtk::GLArea *, int w, int h) {
         if (!is_realised) {
-            make_current();
             Gdk::Surface *srfc = get_context()->get_surface();
             const double gtk_pix_r = srfc->get_scale();
             init_window(w, h, gtk_pix_r);
@@ -55,6 +50,7 @@ void Viewer::init(Class *) {
             // densities?
             set_pixel_ratio(w, gtk_pix_r);
             g_print("Window was realised\n");
+
             is_realised = true;
             if (print_gl)
                 print_gl_info(verbose_gl);
@@ -67,12 +63,11 @@ void Viewer::init(Class *) {
         occ.win->SetSize(w, h);
         occ.view->MustBeResized();
         occ.view->Invalidate();
-        // //@TODO familiarise and examine sub-view behaviours
+        //@TODO familiarise and examine sub-view behaviours
         for (const occ::handle<V3d_View> &sub_view : occ.view->Subviews()) {
             sub_view->MustBeResized();
             sub_view->Invalidate();
         }
-        occ.ctrl->FlushViewEvents(occ.ctx, occ.view, true);
     });
 
     connect_render([this](Gtk::GLArea *, Gdk::GLContext *) {
@@ -86,7 +81,7 @@ void Viewer::init(Class *) {
             occ.view.Nullify();
             occ.viewer.Nullify();
         }
-        make_current();
+        // make_current();
         gl.disp.Nullify();
     });
 }
@@ -131,24 +126,22 @@ void Viewer::init_viewer() {
 }
 
 void Viewer::render_stats() {
+    using RP = Graphic3d_RenderingParams;
+    using PC = RP::PerfCounters;
+    auto stats = (PC)(RP::PerfCounters_FrameRate | RP::PerfCounters_Triangles);
     occ.view->ChangeRenderingParams().ToShowStats = true;
-    occ.view->ChangeRenderingParams().CollectedStats =
-        (Graphic3d_RenderingParams::
-             PerfCounters)(Graphic3d_RenderingParams::PerfCounters_FrameRate |
-                           Graphic3d_RenderingParams::PerfCounters_Triangles);
+    occ.view->ChangeRenderingParams().CollectedStats = stats;
 }
 
 void Viewer::init_ctx() {
-    const Gdk::GLAPI gl_api = get_context()->get_api();
-    g_print("%s\n", gl_api == Gdk::GLAPI::GLES ? "Got GLES context"
-                                               : "Got Desktop GL context");
-    const bool ctx_compat = gl.driver->Options().contextCompatible;
+    Gdk::GLAPI gl_api = get_context()->get_api();
+    auto ctx = gl_api == Gdk::GLAPI::GLES ? "GLES" : "Desktop GL";
+    bool ctx_compat = gl.driver->Options().contextCompatible;
+    g_print("Got %s context.\n", ctx);
 
-#if IS_WIN && !USE_GLES
-    init_windows_win();
-#elif IS_NIX || IS_MACOS
-    if (USE_X11 && !USE_GLES)
-        init_x11_win();
+#if IS_NIX || USE_MACX11 || (IS_WIN && !USE_GLES)
+    if (RUN_X11 || IS_WIN)
+        init_native_win();
 #endif
 
     gl.ctx = new OpenGl_Context();
@@ -156,8 +149,9 @@ void Viewer::init_ctx() {
         g_error("Failed to initialise OCCT gl context");
 
     g_print("Initialised OCCT gl context\n");
-#if IS_NIX || USE_GLES
-    if (USE_WAYLAND || USE_GLES)
+
+#if (!IS_WIN || USE_GLES) && !USE_MACX11
+    if (RUN_WAYLAND || USE_GLES)
         init_egl_ctx();
 #endif
 }
@@ -193,17 +187,10 @@ void Viewer::init_window(int gtk_x, int gtk_y, float gtk_r) {
         mssg += "\nYou could try llvmpipe software rendering as a fallback: "
                 "https://github.com/pal1000/mesa-dist-win";
 #elif IS_NIX
-        mssg += "\nOCCT needs a minimum mesa version of " + MIN_MESA_V;
+        mssg += "\nOCCT needs a minimum mesa version of ";
+        mssg += std::to_string(MIN_MESA_V);
 #endif
         g_critical("%s\n", mssg.c_str());
-
-        auto vendor = (const char *)glGetString(GL_VENDOR);
-        auto renderer = (const char *)glGetString(GL_RENDERER);
-        auto version = (const char *)glGetString(GL_VERSION);
-        g_print("Version:  %s\n", version ? version : "(null)");
-        g_print("Vendor:   %s\n", vendor ? vendor : "(null)");
-        g_print("Renderer: %s\n", renderer ? renderer : "(null)");
-
         g_error("%s", err.what());
     }
 }
@@ -215,7 +202,7 @@ void Viewer::wrap_gl_fbo() {
     if (!gl.fbo->InitWrapper(gl.ctx))
         g_error("Could not wrap the gl framebuffer");
 
-    g_message("gl fbo was wrapped");
+    g_debug("gl fbo was wrapped");
 };
 
 void Viewer::set_pixel_ratio(int gtk_x, float gtk_r) {
@@ -336,21 +323,6 @@ void Viewer::register_input() {
                 queue_draw();
         },
         false);
-
-    // @TODO get_current_view_state seems to handle modifiers, but confirm
-    // that this listener override is not required.
-    //
-    // ctrl_mod->connect_modifiers(
-    //     [this](Gtk::EventControllerKey *ctrl_key,
-    //            Gdk::ModifierType type) -> bool {
-    //       auto pressed = ctrl_key->get_current_event_state();
-    //       logger::info("pressed:", std::to_string((int)pressed),
-    //                    "state:", std::to_string((int)type));
-    //       // key_mods = to_v_key_mod(type);
-    //       // return key_mods != 0;
-    //       return false;
-    //     },
-    //     false);
 
     add_controller(ctrl_motion);
     add_controller(ctrl_scroll);

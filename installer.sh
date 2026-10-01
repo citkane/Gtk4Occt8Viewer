@@ -88,24 +88,21 @@ run() {
             gtk_env+=(GDK_SYNCHRONIZE=1 G_MESSAGES_DEBUG=all)
             ;;
         x11) x11+=(GDK_BACKEND=x11 GDK_DISABLE=egl) ;;
-        # gles) use_gles=USE_GLES=1 ;;
         softgl) softgl=GALLIUM_DRIVER=llvmpipe ;;
         softgles) softgles=GALLIUM_DRIVER=llvmpipe ;;
         esac
     done
-    # [[ -v 'x11[0]' && -v use_gles ]] && x11=(GDK_BACKEND=x11)
-    # [[ -v 'x11[0]' ]] && gtk_env+=("${x11[@]:-}")
-    # [[ -v use_gles ]] && gtk_env+=($use_gles)
-    [[ -v softgl ]] && gtk_env+=($softgl)
-    [[ -v softgles ]] && gtk_env+=($softgles)
+    gtk_env+=("${x11[@]:-}" ${softgl:-} ${softgles:-})
 
     # Windows on VM is rarely hardware accelerated, so wgl will not be not useable.
     # We switch to llvmpipe software rendering if flagged.
-    win_use_mesa ${softgl:-""} ${softgles:-""}
+    [[ "$OSTYPE" == cygwin* || "$OSTYPE" == win32* ]] &&
+        win_use_mesa ${softgl:-""} ${softgles:-""}
 
     # Run the executeable in a new process scope to preserve the parent shell env
     (
         source_occt_env
+        echo "gtk_env: ${gtk_env[@]}"
         [[ ${#gtk_env} > 0 ]] && export "${gtk_env[@]}"
         "${command[@]}"
     )
