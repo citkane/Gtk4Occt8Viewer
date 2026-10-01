@@ -15,8 +15,8 @@
 #include <V3d_View.hxx>
 #include <V3d_Viewer.hxx>
 
+#include <peel/GLib/ErrorType.h>
 #include <peel/Gdk/GLAPI.h>
-#include <peel/Glib/ErrorType.h>
 #include <peel/Gtk/Gtk.h>
 #include <peel/class.h>
 
@@ -66,8 +66,7 @@ class Viewer final : public Gtk::GLArea {
     void init_window(int gtk_w, int gtk_h, float gtk_r);
     void set_pixel_ratio(int gtk_w, float gtk_r);
     void register_input();
-    void init_x11_win();
-    void init_windows_win();
+    void init_native_win();
     void init_egl_ctx();
     void render_stats();
     void divert_occ_printer();
@@ -156,18 +155,18 @@ DEFINE_STANDARD_HANDLE(ViewerPrinter, Message_Printer)
         return result != nullptr && std::strcmp(result, val) == 0;             \
     }())
 
-#define USE_X11                                                                \
+#define RUN_X11                                                                \
     ([]() -> bool {                                                            \
-        if (!IS_MACOS && !IS_NIX)                                              \
+        if ((!USE_MACX11 && !IS_NIX) || USE_GLES)                              \
             return 0;                                                          \
                                                                                \
         return CHECK_ENV_VAL("GDK_BACKEND", "x11") ||                          \
                CHECK_ENV_VAL("XDG_SESSION_TYPE", "x11");                       \
     }())
 
-#define USE_WAYLAND                                                            \
+#define RUN_WAYLAND                                                            \
     ([]() -> bool {                                                            \
-        if (!IS_NIX || USE_X11)                                                \
+        if (!IS_NIX || RUN_X11)                                                \
             return 0;                                                          \
                                                                                \
         return CHECK_ENV_VAL("GDK_BACKEND", "wayland") ||                      \

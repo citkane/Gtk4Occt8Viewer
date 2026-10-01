@@ -3,15 +3,9 @@
 include(CMakeFindDependencyMacro)
 find_dependency(PkgConfig)
 find_dependency(OpenCASCADE)
-# find_dependency(OpenGL)
 pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
-# if(WIN32) pkg_check_modules(EGL REQUIRED IMPORTED_TARGET angleproject) else()
-# pkg_check_modules(EGL REQUIRED IMPORTED_TARGET egl) endif() if(WIN32)
-# pkg_check_modules(EGL REQUIRED IMPORTED_TARGET angleproject) else()
-# pkg_check_modules(EGL REQUIRED IMPORTED_TARGET egl) endif()
 
 include_directories(${OpenCASCADE_INCLUDE_DIR})
-message(STATUS "OCCT Dir: ${OpenCASCADE_INCLUDE_DIR}")
 
 set_and_check(@PROJECT_NAME@_INCDIR @PACKAGE_PKG_INCDIR@)
 set_and_check(@PROJECT_NAME@_LIBDIR @PACKAGE_PKG_LIBDIR@)
@@ -19,42 +13,24 @@ set_and_check(@PROJECT_NAME@_BINDIR @PACKAGE_PKG_BINDIR@)
 set(LIB_LOC ${@PROJECT_NAME@_LIBDIR})
 set(BIN_LOC ${@PROJECT_NAME@_BINDIR})
 
-if(@PROJECT_NAME@_USE_STATIC)
-  set(LIB_STATIC ${LIB_LOC}/lib@PROJECT_NAME@${CMAKE_STATIC_LIBRARY_SUFFIX})
-  # add_library(@PROJECT_NAME@ STATIC IMPORTED) set_target_properties(
-  # @PROJECT_NAME@ PROPERTIES IMPORTED_LOCATION
-  # "@PACKAGE_PKG_LIBDIR@/lib@PROJECT_NAME@.a" INTERFACE_INCLUDE_DIRECTORIES
-  # "@PACKAGE_PROJ_INCLUDE_DIRS@" INTERFACE_LINK_LIBRARIES
-  # "${OpenCASCADE_LIBRARIES};PkgConfig::GTK4;PkgConfig::EGL"
-  # INTERFACE_LINK_OPTIONS "-Wl,-rpath,\$ORIGIN/../lib" )
+if(WIN32)
+  set(LIB_SHARED ${BIN_LOC}/lib@PROJECT_NAME@${CMAKE_SHARED_LIBRARY_SUFFIX})
+  set(LIB_IMP ${LIB_LOC}/lib@PROJECT_NAME@${CMAKE_SHARED_LIBRARY_SUFFIX}.a)
+  set(LINK_OPTS_JOINED "")
 else()
-  if(WIN32)
-    set(LIB_SHARED ${BIN_LOC}/lib@PROJECT_NAME@${CMAKE_SHARED_LIBRARY_SUFFIX})
-    set(LIB_IMP ${LIB_LOC}/lib@PROJECT_NAME@${CMAKE_SHARED_LIBRARY_SUFFIX}.a)
-    set(LINK_OPTS_JOINED "")
-  else()
-    set(LIB_SHARED ${LIB_LOC}/lib@PROJECT_NAME@${CMAKE_SHARED_LIBRARY_SUFFIX})
-    set(LIB_IMP "")
-    set(LINK_OPTS "-Wl" "--disable-new-dtags" "-rpath"
-                  ${@PROJECT_NAME@_LIBDIR}:${OpenCASCADE_LIBRARY_DIR})
-    string(REPLACE ";" "," LINK_OPTS_JOINED "${LINK_OPTS}")
-  endif()
-  add_library(@PROJECT_NAME@ SHARED IMPORTED)
-  set_target_properties(
-    @PROJECT_NAME@
-    PROPERTIES IMPORTED_LOCATION ${LIB_SHARED}
-               IMPORTED_IMPLIB ${LIB_IMP}
-               INTERFACE_INCLUDE_DIRECTORIES ${@PROJECT_NAME@_INCDIR}
-               INTERFACE_LINK_OPTIONS "${LINK_OPTS_JOINED}")
+  set(LIB_SHARED ${LIB_LOC}/lib@PROJECT_NAME@${CMAKE_SHARED_LIBRARY_SUFFIX})
+  set(LIB_IMP "")
+  set(LINK_OPTS "-Wl" "--disable-new-dtags" "-rpath"
+                ${@PROJECT_NAME@_LIBDIR}:${OpenCASCADE_LIBRARY_DIR})
+  string(REPLACE ";" "," LINK_OPTS_JOINED "${LINK_OPTS}")
 endif()
 
-check_required_components(Gtk4Occt8Viewer)
+add_library(@PROJECT_NAME@ SHARED IMPORTED)
+set_target_properties(
+  @PROJECT_NAME@
+  PROPERTIES IMPORTED_LOCATION ${LIB_SHARED}
+             IMPORTED_IMPLIB ${LIB_IMP}
+             INTERFACE_INCLUDE_DIRECTORIES ${@PROJECT_NAME@_INCDIR}
+             INTERFACE_LINK_OPTIONS "${LINK_OPTS_JOINED}")
 
-# set(PROJ_PUBLIC_LIBS) foreach(LIBNAME ${OpenCASCADE_Visualization_LIBRARIES})
-# list( APPEND PROJ_PUBLIC_LIBS ${OpenCASCADE_LIBRARY_DIR}/lib${LIBNAME}.so )
-# endforeach()
-#
-# message(STATUS "OCCT Libs: ${PROJ_PUBLIC_LIBS}") set(LIBS
-# "PkgConfig::EGL;PkgConfig::GTK4;${PROJ_PUBLIC_LIBS}") set(LIB_SHARED
-# ${LIB_LOC}/lib@PROJECT_NAME@.so) message(STATUS "LIB_SHARED ${LIB_SHARED}")
-# message(STATUS "LIB_LOC ${LIB_LOC}")
+check_required_components(Gtk4Occt8Viewer)

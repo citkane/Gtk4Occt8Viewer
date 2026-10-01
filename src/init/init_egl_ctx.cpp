@@ -1,3 +1,5 @@
+#if IS_NIX || USE_GLES || (IS_MACOS && !USE_MACX11) || (!IS_WIN && !IS_MACOS)
+
 #include "Viewer.hpp"
 #include <EGL/egl.h>
 
@@ -11,14 +13,6 @@ void Viewer::init_egl_ctx() {
     if (display_egl == EGL_NO_DISPLAY)
         g_error("The GtkGLArea context is not an EGL context");
 
-    g_print("EGL vendor:     %s\n", eglQueryString(display_egl, EGL_VENDOR));
-    g_print("EGL version:    %s\n", eglQueryString(display_egl, EGL_VERSION));
-    g_print("EGL client APIs: %s\n",
-            eglQueryString(display_egl, EGL_CLIENT_APIS));
-    g_print("EGL extensions:  %s\n",
-            eglQueryString(display_egl, EGL_EXTENSIONS));
-    g_print("EGL context: %p\n", (void *)ctx_egl);
-
     void *cfg_egl = nullptr;
     EGLint cfgid_egl = 0, no_configs = 0;
     const EGLint aConfigAttribs[] = {EGL_CONFIG_ID, cfgid_egl, EGL_NONE};
@@ -31,3 +25,5 @@ void Viewer::init_egl_ctx() {
 
     g_print("Initialised EGL context\n");
 }
+
+#endif
