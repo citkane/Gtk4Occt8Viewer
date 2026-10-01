@@ -1,18 +1,22 @@
 #ifndef GTK4_OCCT8_VIEWER_H
 #define GTK4_OCCT8_VIEWER_H
 
-#include "ViewController.hpp"
-#include <AIS_ViewCube.hxx>
-#include <Aspect_Drawable.hxx>
-#include <Aspect_NeutralWindow.hxx>
-#include <Message.hxx>
-#include <Message_Gravity.hxx>
-#include <OpenGl_GraphicDriver.hxx>
-#include <V3d_View.hxx>
-#include <V3d_Viewer.hxx>
 #include <cstdlib>
 #include <cstring>
 #include <glib.h>
+
+#include "ViewController.hpp"
+#include <Aspect_Drawable.hxx>
+#include <Aspect_NeutralWindow.hxx>
+
+#include <AIS_ViewCube.hxx>
+#include <Message.hxx>
+#include <OpenGl_GraphicDriver.hxx>
+#include <V3d_View.hxx>
+#include <V3d_Viewer.hxx>
+
+#include <peel/Gdk/GLAPI.h>
+#include <peel/Glib/ErrorType.h>
 #include <peel/Gtk/Gtk.h>
 #include <peel/class.h>
 
@@ -63,6 +67,7 @@ class Viewer final : public Gtk::GLArea {
     void set_pixel_ratio(int gtk_w, float gtk_r);
     void register_input();
     void init_x11_win();
+    void init_windows_win();
     void init_egl_ctx();
     void render_stats();
     void divert_occ_printer();
@@ -138,26 +143,6 @@ DEFINE_STANDARD_HANDLE(ViewerPrinter, Message_Printer)
 // ====================================================
 // Macros to switch between Wayland / x11 contexts
 // ====================================================
-#if not defined(__ANDROID__) && defined(__linux__)
-#define IS_LINUX 1
-#else
-#define IS_LINUX 0
-#endif
-
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) ||     \
-    defined(__DragonFly__)
-#define IS_BSD 1
-#else
-#define IS_BSD 0
-#endif
-
-#if defined(__APPLE__) && defined(__MACH__)
-#define IS_MAC 1
-#else
-#define IS_MAC 0
-#endif
-
-#define IS_NIX (IS_LINUX || IS_BSD)
 
 #define CHECK_ENV(key)                                                         \
     ([&]() -> bool {                                                           \
@@ -173,7 +158,7 @@ DEFINE_STANDARD_HANDLE(ViewerPrinter, Message_Printer)
 
 #define USE_X11                                                                \
     ([]() -> bool {                                                            \
-        if (!IS_MAC && !IS_NIX)                                                \
+        if (!IS_MACOS && !IS_NIX)                                              \
             return 0;                                                          \
                                                                                \
         return CHECK_ENV_VAL("GDK_BACKEND", "x11") ||                          \
@@ -189,4 +174,4 @@ DEFINE_STANDARD_HANDLE(ViewerPrinter, Message_Printer)
                CHECK_ENV_VAL("XDG_SESSION_TYPE", "wayland");                   \
     }())
 
-#define USE_GLES ([]() -> bool { return CHECK_ENV("USE_GLES"); }())
+// #define USE_GLES ([]() -> bool { return CHECK_ENV("USE_GLES"); }())
