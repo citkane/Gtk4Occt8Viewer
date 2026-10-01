@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-occt_prepare() {
+occt_configure() {
     local src_dir=$1
     local build_dir=$2
     local prefix=$3
@@ -54,9 +54,9 @@ occt_uninstall() {
     [[ ! -e $manifest ]] && return 0
 
     if [[ -n "$silent" ]]; then
-        xargs rm -v <$manifest >/dev/null || return 0
+        uninstall_manifest "$build_dir" >/dev/null || return 0
     else
-        xargs rm -v <$manifest
+        uninstall_manifest "$build_dir"
     fi
 }
 occt_clean() {
@@ -73,15 +73,16 @@ occt_delete() {
 parse_options() {
     local -n ref_options=$1
     local -a flags=("${@:2}")
-    local x11="-DUSE_XLIB=ON"
-    local -a gles
+    local gles=-DUSE_GLES2=OFF
+    local gl=-DUSE_OPENGL=ON
+    [[ "$OSTYPE" == linux* ]] && local x11=-DUSE_XLIB=ON
+
     for flag in ${flags[@]:-}; do
         case $flag in
         # If USE_OPENGL=ON and USE_GLES=ON co-exist, GTK4 fails
         # OCCT CMake does not automatically override these
         # @TODO create bug report
-        # gles) gles+=("-DUSE_GLES2=ON") ;;
-        gles) gles+=("-DUSE_GLES2=ON" "-DUSE_OPENGL=OFF") ;;
+        gles) gles=-DUSE_GLES2=ON && gl=-DUSE_OPENGL=OFF ;;
         # In real world applications, Nix users can switch between Wayland and X11 sessions.
         # OCCT however limits itself to an EGL OR X11 path at compile time.
         # This neccesitates two different builds for the same OS, which is unsustainable.
@@ -89,7 +90,7 @@ parse_options() {
         wayland) x11=-DUSE_XLIB=OFF ;;
         esac
     done
-    ref_options+=(${x11:-} ${gles[@]:-})
+    ref_options+=(${gles} ${gl} ${x11:-})
 }
 
 parse_modules() {

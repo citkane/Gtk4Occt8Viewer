@@ -15,6 +15,7 @@ PCKGS=(
     mesa-utils
     freetype2
 )
+
 install_os_dependencies() {
     local -a dependencies
     list_dependencies dependencies "The following packages will be installed:"

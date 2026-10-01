@@ -20,12 +20,10 @@ source_os() {
         todo "MacOS"
         return 1
 
-    elif [[ "$OSTYPE" == msys* ]]; then
-        todo "Windows msys2"
-        return 1
     elif [[ "$OSTYPE" == cygwin* || "$OSTYPE" == win32* ]]; then
-        echo "$OSTYPE is not supported. Please use msys2 for Windows"
-        return 1
+        source "$THIS_DIR/os/windows.sh"
+        DISTRO=win
+
     else
         echo "Unsupported platform: $OSTYPE"
         contribute
@@ -60,6 +58,14 @@ list_dependencies() {
         echo "Please check your version, or run the install script to have it checked for you."
 }
 
+uninstall_manifest() {
+    local build_dir=$1
+    local path
+    while IFS= read -r path; do
+        path=${path%$'\r'}
+        [[ -n $path ]] && rm -v -- "$path"
+    done <"$build_dir/install_manifest.txt"
+}
 echo_mesa_needed() {
     echo "For Wayland EGL off-screen rendering on OCCT, Mesa >= $MIN_MESA_V is required."
 }
