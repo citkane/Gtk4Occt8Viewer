@@ -27,6 +27,8 @@ void Viewer::init(Class *) {
 
     divert_occ_printer();
     register_input();
+    init_driver();
+    init_viewer();
 
     connect_realize([this](Gtk::Widget *) {
         make_current();
@@ -34,8 +36,6 @@ void Viewer::init(Class *) {
         if (err != NULL)
             g_error("%s", err->message);
 
-        init_driver();
-        init_viewer(); // init on realise so that user defaults are prefferred
         init_ctx();
         g_print("Widget was realised\n");
     });
@@ -81,7 +81,6 @@ void Viewer::init(Class *) {
             occ.view.Nullify();
             occ.viewer.Nullify();
         }
-        // make_current();
         gl.disp.Nullify();
     });
 }
@@ -105,32 +104,8 @@ void Viewer::init_viewer() {
     occ.ctrl = new ViewController(*this);
     occ.viewer = new V3d_Viewer(gl.driver);
     occ.ctx = new AIS_InteractiveContext(occ.viewer);
-    occ.cube = new AIS_ViewCube();
-    occ.camera = new AIS_AnimationCamera("default", occ.view);
-
-    occ.viewer->SetDefaultBackgroundColor(Quantity_NOC_DARKSLATEGRAY);
-    occ.viewer->SetDefaultLights();
-    occ.viewer->SetLightOn();
-    occ.viewer->ActivateGrid(Aspect_GT_Rectangular, Aspect_GDM_Lines);
-
     occ.view = occ.viewer->CreateView();
     occ.view->SetImmediateUpdate(false);
-
-    occ.cube->SetViewAnimation(occ.camera);
-    occ.cube->SetFixedAnimationLoop(false);
-    occ.cube->SetAutoStartAnimation(true);
-
-    occ.ctx->Display(occ.cube, 0, 0, false);
-    if (show_stats)
-        render_stats();
-}
-
-void Viewer::render_stats() {
-    using RP = Graphic3d_RenderingParams;
-    using PC = RP::PerfCounters;
-    auto stats = (PC)(RP::PerfCounters_FrameRate | RP::PerfCounters_Triangles);
-    occ.view->ChangeRenderingParams().ToShowStats = true;
-    occ.view->ChangeRenderingParams().CollectedStats = stats;
 }
 
 void Viewer::init_ctx() {
@@ -161,15 +136,12 @@ void Viewer::init_window(int gtk_x, int gtk_y, float gtk_r) {
     const int occ_y = ceil(gtk_y * gtk_r);
     const RenderingContext ctx_gl = gl.ctx->RenderingContext();
 
-    g_debug("def occt resltn: %u",
-            occ.view->RenderingParams().Resolution); // 72
     occ.win = new Aspect_NeutralWindow();
     occ.win->SetVirtual(true);
     occ.win->SetNativeHandle(win_native);
     occ.win->SetSize(occ_x, occ_y);
-    // @TODO why 96 and not the default 72
+    // @TODO why 96 and not the default 72?
     occ.view->ChangeRenderingParams().Resolution = 96.0;
-    g_debug("init occt resltn: %u", occ.view->RenderingParams().Resolution);
     try {
         occ.view->SetWindow(occ.win, ctx_gl);
         occ.view->MustBeResized();
@@ -330,6 +302,24 @@ void Viewer::register_input() {
     add_controller(ctrl_mod);
 }
 
+// =============================
+// user helpers
+// =============================
+void Viewer::set_default_scene() {
+    occ.viewer->SetDefaultLights();
+    occ.viewer->SetLightOn();
+    occ.viewer->ActivateGrid(Aspect_GT_Rectangular, Aspect_GDM_Lines);
+
+    using ViewCube = Handle(AIS_ViewCube);
+    using AnimationCamera = Handle(AIS_AnimationCamera);
+    ViewCube cube = new AIS_ViewCube();
+    AnimationCamera camera = new AIS_AnimationCamera("default", occ.view);
+    cube->SetViewAnimation(camera);
+    cube->SetFixedAnimationLoop(false);
+    cube->SetAutoStartAnimation(true);
+    occ.ctx->Display(cube, 0, 0, false);
+}
+
 void Viewer::print_gl_info(bool verbose) {
     if (!is_realised) {
         g_warning("GL diagnotics can only be printed after the window is "
@@ -366,10 +356,8 @@ void Viewer::divert_occ_printer() {
 // peel GObject intitialiser
 // =============================
 inline void Viewer::Class::init() {}
-FloatPtr<Viewer> Viewer::create(bool show_stats, bool print_gl,
-                                bool verbose_gl) {
+FloatPtr<Viewer> Viewer::create(bool print_gl, bool verbose_gl) {
     auto viewer = Object::create<Viewer>();
-    viewer->set_show_stats(show_stats);
     viewer->set_print_gl(print_gl);
     viewer->set_verbose_gl(verbose_gl);
     return viewer;
@@ -380,16 +368,9 @@ template <typename F> void Viewer::define_properties(F &f) {
         .get(&Viewer::get_print_gl)
         .set(&Viewer::set_print_gl)
         .flags(peel::GObject::ParamFlags::READWRITE);
-
-    f.prop(prop_show_stats(), false)
-        .get(&Viewer::get_show_stats)
-        .set(&Viewer::set_show_stats)
-        .flags(peel::GObject::ParamFlags::READWRITE);
 }
 
-bool Viewer::get_show_stats() const { return show_stats; }
 bool Viewer::get_print_gl() const { return print_gl; }
 bool Viewer::get_verbose_gl() const { return print_gl; }
-void Viewer::set_show_stats(bool value) { show_stats = value; }
 void Viewer::set_print_gl(bool value) { print_gl = value; }
 void Viewer::set_verbose_gl(bool value) { verbose_gl = value; }

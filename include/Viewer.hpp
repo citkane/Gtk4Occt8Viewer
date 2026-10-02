@@ -39,22 +39,19 @@ class Viewer final : public Gtk::GLArea {
   public:
     /**
      * @brief Create a GObject of the Gtk4Occt8Viewer widget
-     * @param show_stats Show live rendering stats in the Viewer window
      * @param print_gl Print OpenGL diagnostics to the console
      * @param verbose_gl Use verbose OpenGL diagnostics
      * */
-    static FloatPtr<Viewer> create(bool show_stats = false,
-                                   bool print_gl = false,
+    static FloatPtr<Viewer> create(bool print_gl = false,
                                    bool verbose_gl = false);
     void print_gl_info(bool verbose);
+    void set_default_scene();
 
-    struct {
+    struct OCC {
         occ::handle<Aspect_NeutralWindow> win;
         occ::handle<V3d_Viewer> viewer;
         occ::handle<V3d_View> view;
         occ::handle<AIS_InteractiveContext> ctx;
-        occ::handle<AIS_ViewCube> cube;
-        occ::handle<AIS_AnimationCamera> camera;
         ViewController *ctrl;
     } occ;
 
@@ -68,7 +65,6 @@ class Viewer final : public Gtk::GLArea {
     void register_input();
     void init_native_win();
     void init_egl_ctx();
-    void render_stats();
     void divert_occ_printer();
 
     struct {
@@ -89,16 +85,12 @@ class Viewer final : public Gtk::GLArea {
     void init(Class *);
     template <typename F> static void define_properties(F &f);
     // Members for peel GObject constructor params
-    PEEL_PROPERTY(bool, show_stats, "show-stats")
     PEEL_PROPERTY(bool, print_gl, "print-gl")
     PEEL_PROPERTY(bool, verbose_gl, "verbose-gl")
-    bool show_stats;
     bool print_gl;
     bool verbose_gl;
-    bool get_show_stats() const;
     bool get_print_gl() const;
     bool get_verbose_gl() const;
-    void set_show_stats(bool value);
     void set_print_gl(bool value);
     void set_verbose_gl(bool value);
 };
