@@ -14,9 +14,11 @@ if(NOT Gtk4Occt8Viewer_FOUND)
   message(FATAL_ERROR "could not find Gtk4Occt8Viewer")
 endif()
 
+message(STATUS "OCCT Libs: ${OpenCASCADE_LIBRARIES}")
 add_compile_options("-Wall" "-Wextra")
 add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/main.cpp)
-target_link_libraries(${PROJECT_NAME} PUBLIC Gtk4Occt8Viewer peel::Gtk
-                                             PkgConfig::GTK4)
+target_link_libraries(
+  ${PROJECT_NAME} PUBLIC Gtk4Occt8Viewer peel::Gtk PkgConfig::GTK4
+                         ${OpenCASCADE_LIBRARIES})
 
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
