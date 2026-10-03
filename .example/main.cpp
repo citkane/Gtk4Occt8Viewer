@@ -16,9 +16,6 @@
 using namespace peel;
 using namespace Gtk4::Occt8;
 using namespace Gtk;
-// using Orient = Gtk::Orientation;
-// using Box = FloatPtr<Gtk::Box>;
-// using Viewer = FloatPtr<Occt8::Viewer>;
 
 // ============================================================
 // Consumer application entry point
@@ -38,8 +35,8 @@ static void append_ui_buttons(Box *app_box, Viewer *viewer);
 static void append_ui_viewer(Box *app_box, Viewer *viewer);
 static void append_ui_controller(Box *app_box, Viewer *viewer);
 static void build_ui(Gio::Application *application) {
-    auto app = application->cast<Gtk::Application>();
-    auto app_box = Gtk::Box::create(Orientation::VERTICAL, 6);
+    auto app = application->cast<Application>();
+    auto app_box = Box::create(Orientation::VERTICAL, 6);
     auto window = ApplicationWindow::create(app);
     auto viewer = Viewer::create();
 
@@ -57,10 +54,10 @@ static void on_about_clicked(Button *bttn, Viewer *viewer);
 static void on_quit_clicked(Gtk::Button *bttn);
 static void toggle_scene_stats(Viewer *viewer);
 static void append_ui_buttons(Box *app_box, Viewer *viewer) {
-    auto about_bttn = Gtk::Button::create_with_label("About");
-    auto stats_bttn = Gtk::Button::create_with_label("Stats");
-    auto quit_bttn = Gtk::Button::create_with_label("Quit");
-    auto buttons = Gtk::Box::create(Orientation::HORIZONTAL, 6);
+    auto about_bttn = Button::create_with_label("About");
+    auto stats_bttn = Button::create_with_label("Stats");
+    auto quit_bttn = Button::create_with_label("Quit");
+    auto buttons = Box::create(Orientation::HORIZONTAL, 6);
 
     quit_bttn->connect_clicked(on_quit_clicked, false);
     stats_bttn->connect_clicked(
