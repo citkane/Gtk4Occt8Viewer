@@ -32,8 +32,10 @@ void Viewer::init_native_win() {
 
 #elif IS_WIN && !USE_GLES
 
+#if IS_WIN
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#endif
 
 #include "Viewer.hpp"
 

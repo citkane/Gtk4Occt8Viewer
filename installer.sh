@@ -4,6 +4,9 @@ OCCT_VERSION=OCCT-801
 BUILD_DIR=$(pwd)/.build
 CLONE_DIR=$(pwd)/.clone
 PREFIX=$(pwd)/.local
+[[ "$OSTYPE" == linux* ]] && IS_LINUX=true || IS_LINUX=false
+[[ "$OSTYPE" == darwin* ]] && IS_MAC=true || IS_MAC=false
+[[ "$OSTYPE" == cygwin* || "$OSTYPE" == win32* ]] && IS_WINDOWS=true || IS_WINDOWS=false
 
 ADD_PATHS="$PREFIX:$PREFIX/bin:$PREFIX/lib"
 [[ $PATH != *"$ADD_PATHS"* ]] && export PATH="$ADD_PATHS:$PATH"
@@ -17,6 +20,8 @@ print_help() {
     echo "q                                        - quit"
     echo "h                                        - print this"
     echo "c                                        - clear the console"
+    echo "CC                                       - clear ccache"
+    echo "nuke                                     - ensure a fresh build environment"
     echo
     echo "<install|clean|uninstall|delete> <package> (use one) (required) ----------------"
     echo "[install] <package> is a complete clone, build and install cycle as needed."
@@ -88,23 +93,27 @@ run() {
             gtk_env+=(GDK_SYNCHRONIZE=1 G_MESSAGES_DEBUG=all)
             ;;
         x11) x11+=(GDK_BACKEND=x11 GDK_DISABLE=egl) ;;
-        softgl) softgl=GALLIUM_DRIVER=llvmpipe ;;
-        softgles) softgles=GALLIUM_DRIVER=llvmpipe ;;
+        softgl) $IS_WINDOWS && softgl=GALLIUM_DRIVER=llvmpipe ;;
+        softgles) $IS_WINDOWS && softgles=GALLIUM_DRIVER=llvmpipe ;;
         esac
     done
-    gtk_env+=("${x11[@]:-}" ${softgl:-} ${softgles:-})
-
-    # Windows on VM is rarely hardware accelerated, so wgl will not be not useable.
-    # We switch to llvmpipe software rendering if flagged.
-    [[ "$OSTYPE" == cygwin* || "$OSTYPE" == win32* ]] &&
-        win_use_mesa ${softgl:-""} ${softgles:-""}
+    ((${#x11[@]} > 0)) && gtk_env+=("${x11[@]}")
+    [[ -v softgl ]] && gtk_env+=($softgl)
+    [[ -v softgles ]] && gtk_env+=($softgles)
 
     # Run the executeable in a new process scope to preserve the parent shell env
     (
-        source_occt_env
-        echo "gtk_env: ${gtk_env[@]}"
-        [[ ${#gtk_env} > 0 ]] && export "${gtk_env[@]}"
-        "${command[@]}"
+        ((${#gtk_env[@]} > 0)) && export "${gtk_env[@]}"
+        if $IS_WINDOWS; then
+            # Windows on VM is rarely hardware accelerated, so wgl will not be not useable.
+            # We switch to llvmpipe software rendering if flagged.
+            win_use_mesa ${softgl:-""} ${softgles:-""}
+            "$COMSPEC" //c "call env.bat && ${command[@]}"
+        else
+            source env.sh
+            ((${#gtk_env[@]})) >0 && export "${gtk_env[@]}"
+            "${command[@]}"
+        fi
     )
 }
 
@@ -181,57 +190,16 @@ confirm() {
     [[ "$answer" =~ ^[Yy]([Ee][Ss])?$ ]]
 }
 
-source_occt_env() {
-    if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
-        local win_crt=$(cygpath -u "$SYSTEMDRIVE\Windows\System32\downlevel")
-        local occt_dlls=$PREFIX/win64/gcc/bin
-        local drive_regex='[[:alpha:]]:[\\/]'
-
-        # Read the OCCT env.bat and convert paths or lists of paths to unix syntax
-        while IFS='=' read -r name value; do
-            [[ $name =~ ^[[:alpha:]_][[:alnum:]_]*$ ]] || continue
-
-            value=${value%$'\r'}
-            if [[ "$value" =~ \;$drive_regex ]]; then
-                value=$(cygpath -u -p "$value")
-            elif [[ "$value" =~ ^$drive_regex ]]; then
-                value=$(cygpath -u "$value")
-            fi
-            export "$name=$value"
-        done < <(
-            cmd.exe //d //q //c 'call env.bat && set'
-        )
-
-        export PATH="$occt_dlls:$PATH:$win_crt"
-    else
-        source env.sh
-    fi
+nuke() {
+    rm -rf $PREFIX
+    rm -rf $CLONE_DIR
+    rm -rf $BUILD_DIR
+    ccache -C
+    $IS_WINDOWS && win_download_mesa
 }
 
-# init_softgl() {
-#     ! [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && return 0
-#
-#     # Copy the needed dlls next to the app executeable.
-#     # dlls provided by mingw-w64-ucrt-x86_64-mesa
-#     local software_render=$1
-#     if [[ -n "$software_render" ]]; then
-#         # cp -n /ucrt64/bin/opengl32.dll $PREFIX/bin/opengl32.dll
-#         cp -n /ucrt64/bin/libgallium_wgl.dll $PREFIX/bin/libgallium_wgl.dll
-#         cp -n /ucrt64/bin/libEGL.dll $PREFIX/bin/libEGL.dll
-#         cp -n /ucrt64/bin/libGLESv2.dll $PREFIX/bin/libGLESv2.dll
-#         #         libEGL.dll (The software EGL implementation)
-#         # libGLESv2.dll (The OpenGL ES implementation)
-#         # libgallium_wgl.dll (The core software rasterizer, LLVMpipe
-#     else
-#         rm -f $PREFIX/bin/opengl32.dll
-#         rm -f $PREFIX/bin/libgallium_wgl.dll
-#     fi
-# }
-
 print_help
-source .scripts/install.sh $0
-[[ ${HAS_CHILD_PROC:-} == 1 ]] && return 0
-
+source .scripts/install.sh
 source .scripts/build.sh
 prompt
 
@@ -243,6 +211,8 @@ while read -r -a args; do
     q) clear && return 0 ;;
     h) print_help ;;
     c) clear ;;
+    CC) ccache -C ;;
+    nuke) nuke ;;
     sys) echo ${MSYSTEM:-${DISTRO:-${OSTYPE}}} ;;
     run) run "${args[@]}" ;;
     install)

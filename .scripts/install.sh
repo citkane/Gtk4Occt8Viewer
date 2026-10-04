@@ -5,7 +5,7 @@ DISTRO=
 MIN_MESA_V=
 
 source_os() {
-    if [[ "$OSTYPE" == linux* ]]; then
+    if $IS_LINUX; then
         MIN_MESA_V=25.2
         source /etc/os-release
         DISTRO="${ID_LIKE:-$ID}"
@@ -16,11 +16,11 @@ source_os() {
         fi
         source "$THIS_DIR/os/$DISTRO.sh"
 
-    elif [[ "$OSTYPE" == darwin* ]]; then
+    elif $IS_MAC; then
         todo "MacOS"
         return 1
 
-    elif [[ "$OSTYPE" == cygwin* || "$OSTYPE" == win32* ]]; then
+    elif $IS_WINDOWS; then
         source "$THIS_DIR/os/windows.sh"
         DISTRO=win
 
@@ -52,7 +52,7 @@ list_dependencies() {
         printf '%s\n' "${results[@]}"
         echo
     fi
-    [[ "$OSTYPE" == linux* ]] && [[ "$DISTRO" != "arch" ]] &&
+    $IS_LINUX && [[ "$DISTRO" != "arch" ]] &&
         echo_mesa_needed &&
         [[ ! -n $message ]] &&
         echo "Please check your version, or run the install script to have it checked for you."
@@ -80,4 +80,3 @@ echo_mesa_fail() {
 }
 
 source_os
-# source $THIS_DIR/install/dependencies.sh

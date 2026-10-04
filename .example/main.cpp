@@ -1,3 +1,7 @@
+#include <peel/Gdk/Gdk.h>
+#include <peel/Gio/ApplicationFlags.h>
+#include <peel/Gtk/Gtk.h>
+
 #include "Viewer.hpp"
 #include <AIS_AnimationCamera.hxx>
 #include <AIS_InteractiveContext.hxx>
@@ -5,13 +9,6 @@
 #include <Quantity_NameOfColor.hxx>
 #include <Quantity_TypeOfColor.hxx>
 #include <Standard_Version.hxx>
-
-#include <peel/FloatPtr.h>
-#include <peel/Gdk/Gdk.h>
-#include <peel/Gio/ApplicationFlags.h>
-#include <peel/Gtk/Adjustment.h>
-#include <peel/Gtk/Gtk.h>
-#include <peel/Gtk/Orientation.h>
 
 using namespace peel;
 using namespace Gtk4::Occt8;
@@ -38,7 +35,7 @@ static void build_ui(Gio::Application *application) {
     auto app = application->cast<Application>();
     auto app_box = Box::create(Orientation::VERTICAL, 6);
     auto window = ApplicationWindow::create(app);
-    auto viewer = Viewer::create();
+    auto viewer = Viewer::create(true);
 
     append_ui_buttons(app_box, viewer);
     append_ui_viewer(app_box, viewer);

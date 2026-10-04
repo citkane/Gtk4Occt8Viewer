@@ -7,12 +7,17 @@ occt_configure() {
     local -a flags=("${@:4}")
     local options=(
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-        -DCMAKE_C_COMPILER_LAUNCHER=ccache
-        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
         -DBUILD_CPP_STANDARD=C++17
         -DBUILD_USE_VCPKG=OFF
+        -DINSTALL_DIR_LAYOUT=Unix
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
     )
+    # ! $IS_WINDOWS && options+=(
+    #     -DCMAKE_C_COMPILER_LAUNCHER=ccache
+    #     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+    # ) || options+=(-DBUILD_RESOURCES=ON)
     local modules=(-DBUILD_MODULE_Visualization=ON)
 
     parse_options options "${flags[@]:-}"
@@ -20,6 +25,7 @@ occt_configure() {
 
     export CFLAGS="-w"
     export CXXFLAGS="-w"
+    occt_uninstall $build_dir silent
     cmake --install-prefix $prefix -G Ninja \
         -S $src_dir -B $build_dir \
         "${options[@]}" \
@@ -28,6 +34,7 @@ occt_configure() {
 
 occt_build() {
     local build_dir=$1
+    # echo "build_dir: $build_dir"
     cmake --build $build_dir --parallel
 }
 
@@ -41,7 +48,6 @@ occt_clone() {
 
 occt_install() {
     local build_dir=$1
-    occt_uninstall $build_dir silent
     cmake --install $build_dir
     echo
     echo "You may need to re-install viewer and example after re-building OCCT"
@@ -54,7 +60,9 @@ occt_uninstall() {
     [[ ! -e $manifest ]] && return 0
 
     if [[ -n "$silent" ]]; then
-        uninstall_manifest "$build_dir" >/dev/null || return 0
+        echo "Uninstalling previous installation..."
+        echo "Please wait"
+        uninstall_manifest "$build_dir" >/dev/null
     else
         uninstall_manifest "$build_dir"
     fi
