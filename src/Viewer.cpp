@@ -7,6 +7,8 @@
 #include <Graphic3d_DiagnosticInfo.hxx>
 #include <Quantity_NameOfColor.hxx>
 
+using occ::handle;
+
 IMPLEMENT_STANDARD_RTTIEXT(Gtk4::Occt8::ViewerPrinter, Message_Printer)
 PEEL_CLASS_IMPL(Gtk4::Occt8::Viewer, "Gtk4Occt8Viewer", peel::Gtk::GLArea)
 using namespace Gtk4::Occt8;
@@ -310,8 +312,8 @@ void Viewer::set_default_scene() {
     occ.viewer->SetLightOn();
     occ.viewer->ActivateGrid(Aspect_GT_Rectangular, Aspect_GDM_Lines);
 
-    using ViewCube = Handle(AIS_ViewCube);
-    using AnimationCamera = Handle(AIS_AnimationCamera);
+    using ViewCube = occ::handle<AIS_ViewCube>;
+    using AnimationCamera = occ::handle<AIS_AnimationCamera>;
     ViewCube cube = new AIS_ViewCube();
     AnimationCamera camera = new AIS_AnimationCamera("default", occ.view);
     cube->SetViewAnimation(camera);
