@@ -55,7 +55,14 @@ static void build_ui(Gio::Application *application) {
     auto app = application->cast<Gtk::Application>();
     auto window = Gtk::ApplicationWindow::create(app);
     auto viewer = Occt8::Viewer::create();
-	// viewer->occ points to the OCCT viewer API's
+	// viewer->occ points to the OCCT API's:
+	// {
+    //     occ::handle<Aspect_NeutralWindow> win;
+    //     occ::handle<V3d_Viewer> viewer;
+    //     occ::handle<V3d_View> view;
+    //     occ::handle<AIS_InteractiveContext> ctx;
+    //     ViewController *ctrl;
+    // }
 
     window->set_child(std::move(viewer));
     window->set_default_size(800, 600);
