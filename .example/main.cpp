@@ -1,17 +1,14 @@
-#include <peel/Gdk/Gdk.h>
 #include <peel/Gio/ApplicationFlags.h>
-#include <peel/Gtk/ApplicationWindow.h>
-#include <peel/Gtk/ColorDialogButton.h>
 #include <peel/Gtk/Gtk.h>
 
-#include "Viewer.hpp"
 #include <AIS_AnimationCamera.hxx>
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_ViewCube.hxx>
 #include <Quantity_NameOfColor.hxx>
 #include <Quantity_TypeOfColor.hxx>
 #include <Standard_Version.hxx>
-#include <peel/Gtk/Orientation.h>
+
+#include <Viewer.hpp>
 
 using namespace peel;
 using namespace Gtk4::Occt8;
