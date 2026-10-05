@@ -1,15 +1,20 @@
 #!/usr/bin/bash
 
-OCCT_VERSION=OCCT-801
-BUILD_DIR=$(pwd)/.build
-CLONE_DIR=$(pwd)/.clone
-PREFIX=$(pwd)/.local
+OCCT_VERSION=${OCCT_VERSION:-"OCCT-801"}
+BUILD_DIR=${BUILD_DIR:-"$(pwd)/.build"}
+CLONE_DIR=${CLONE_DIR:-"$(pwd)/.clone"}
+PREFIX=${PREFIX:-"$(pwd)/.local"}
+BUILD_TYPE=${BUILD_TYPE:-"Debug"}
+
 [[ "$OSTYPE" == linux* ]] && IS_LINUX=true || IS_LINUX=false
 [[ "$OSTYPE" == darwin* ]] && IS_MAC=true || IS_MAC=false
 [[ "$OSTYPE" == cygwin* || "$OSTYPE" == win32* ]] && IS_WINDOWS=true || IS_WINDOWS=false
 
-ADD_PATHS="$PREFIX:$PREFIX/bin:$PREFIX/lib"
-[[ $PATH != *"$ADD_PATHS"* ]] && export PATH="$ADD_PATHS:$PATH"
+DEV_PATHS=("$PREFIX" "$PREFIX/bin" "$PREFIX/lib")
+for path in ${DEV_PATHS[@]}; do
+    [[ $PATH == *"$path"* ]] && continue
+    export PATH="$path:$PATH"
+done
 
 print_help() {
     clear
@@ -111,7 +116,6 @@ run() {
             "$COMSPEC" //c "call env.bat && ${command[@]}"
         else
             source env.sh
-            ((${#gtk_env[@]})) >0 && export "${gtk_env[@]}"
             "${command[@]}"
         fi
     )

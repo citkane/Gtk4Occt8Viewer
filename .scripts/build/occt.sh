@@ -7,34 +7,33 @@ occt_configure() {
     local -a flags=("${@:4}")
     local options=(
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-        -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        -DCMAKE_BUILD_TYPE=$BUILD_TYPE
         -DBUILD_CPP_STANDARD=C++17
         -DBUILD_USE_VCPKG=OFF
         -DINSTALL_DIR_LAYOUT=Unix
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
     )
-    # ! $IS_WINDOWS && options+=(
-    #     -DCMAKE_C_COMPILER_LAUNCHER=ccache
-    #     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-    # ) || options+=(-DBUILD_RESOURCES=ON)
     local modules=(-DBUILD_MODULE_Visualization=ON)
 
     parse_options options "${flags[@]:-}"
     parse_modules modules "${flags[@]:-}"
+    rm -f $src_dir/compile_commands.json
 
     export CFLAGS="-w"
     export CXXFLAGS="-w"
-    occt_uninstall $build_dir silent
+    occt_uninstall $build_dir
     cmake --install-prefix $prefix -G Ninja \
         -S $src_dir -B $build_dir \
         "${options[@]}" \
         "${modules[@]}"
+
+    cp $build_dir/compile_commands.json $src_dir/compile_commands.json
 }
 
 occt_build() {
     local build_dir=$1
-    # echo "build_dir: $build_dir"
+    echo "Building OCCT to $build_dir"
     cmake --build $build_dir --parallel
 }
 
@@ -42,30 +41,26 @@ occt_clone() {
     local src_dir=$1
     local version=$2
     local url=https://github.com/Open-Cascade-SAS/OCCT.git
+    [[ -e "$src_dir/CMakeLists.txt" ]] && return 0
 
-    [[ -d "$src_dir" ]] || git clone -b $version --single-branch $url $src_dir
+    echo "Cloning OCCT to $src_dir"
+    rm -rf "$src_dir"
+    git clone -b $version --single-branch $url $src_dir
 }
 
 occt_install() {
     local build_dir=$1
-    cmake --install $build_dir
-    echo
-    echo "You may need to re-install viewer and example after re-building OCCT"
+    local status
+    echo "Installing OCCT to $PREFIX"
+    print_same_line cmake --install $build_dir
 }
 
 occt_uninstall() {
     local build_dir=$1
-    local silent=$2
     local manifest=$build_dir/install_manifest.txt
     [[ ! -e $manifest ]] && return 0
 
-    if [[ -n "$silent" ]]; then
-        echo "Uninstalling previous installation..."
-        echo "Please wait"
-        uninstall_manifest "$build_dir" >/dev/null
-    else
-        uninstall_manifest "$build_dir"
-    fi
+    uninstall_manifest "$manifest"
 }
 occt_clean() {
     local build_dir=$1

@@ -3,13 +3,16 @@
 example_configure() (
     local build_dir=$1
     local prefix=$2
+    local options=(
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+    )
 
-    mkdir -p $build_dir
     rm -f ./compile_commands.json
-
-    cmake -S . -B $build_dir -G Ninja \
-        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-        -DCMAKE_INSTALL_PREFIX=$prefix
+    example_uninstall $build_dir
+    cmake --install-prefix $prefix -G Ninja \
+        -S . -B $build_dir \
+        "${options[@]}"
 
     cp $build_dir/compile_commands.json ./compile_commands.json
 )
@@ -25,7 +28,10 @@ example_install() {
 
 example_uninstall() {
     local build_dir=$1
-    uninstall_manifest "$build_dir"
+    local manifest="$build_dir/install_manifest.txt"
+    [[ ! -e "$manifest" ]] && retunr 0
+
+    uninstall_manifest "$manifest"
 }
 
 example_clean() {
