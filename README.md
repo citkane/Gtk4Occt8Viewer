@@ -1,5 +1,5 @@
 # Gtk Occt Viewer Widget
-A drop in Gtk widget for the OpenCascade Technologies OCCT viewer.
+A drop in Gtk widget for the OpenCascade Technologies [OCCT](https://github.com/Open-Cascade-SAS/OCCT) viewer.
 
 Requirements:
 - OCCT v8+
@@ -7,7 +7,7 @@ Requirements:
 - [Peel](https://gitlab.gnome.org/bugaevc/peel) (Gtk C++ wrapper)
 - Mesa 25.2+ (For Wayland compatibility)
 
-## Build
+## Building the widget
 Ensure that you have Gtk and OCCT installed and on your PATH.
 
 Install Peel using Meson.
@@ -34,13 +34,13 @@ cmake --install .build
 ```
 
 
-## Consume
-The built library is a gobject widget, so can be consumed as C or C++.
+## Consuming the widget
+The built library is a gobject widget, so it can be consumed as C or C++.
 
 A minimal Peel C++ application example:
 ```cpp
-#include <peel/Gtk/Gtk.h>
 #include <peel/Gio/ApplicationFlags.h>
+#include <peel/Gtk/Gtk.h>
 
 #include <AIS_AnimationCamera.hxx>
 #include <AIS_InteractiveContext.hxx>
@@ -72,15 +72,20 @@ int main(int argc, char **argv) {
 
 See the example application in the .example folder for more guidance.
 
-## Quickstart
-For a fully automated install of OCCT, the Viewer widget and the example application
-you can use the included installer script from the repository root for
-(debian, arch, Windows MSYS2 UCRT):
+## Quickstart development
+For an automated development install of: 
+- OS dependencies,
+- OCCT, 
+- the Viewer widget and 
+- the example application
+
+you can use the included installer script from the repository root
+(for debian, arch and Windows MSYS2 UCRT):
 ```bash
 source installer.sh
 ```
 
-This will put you into an interactive prompt:
+This will put you into an interactive installer prompt:
 ```
 installer > install dependencies
 installer > install peel
@@ -90,38 +95,35 @@ installer > install example
 installer > run
 ```
 
-All resouces will be downloaded, built and installed locally in the root's 
+All resouces will be downloaded, built and installed locally in the project root's 
 .clone, .build and .local folders.
 
-The OCCT build is a development build, and should not be used for production.
+These are development builds, and should not be used for production.
 
-## Notes on Unix like X11 / Wayland switching
+## Notes on X11 / Wayland contexts
 ### Wayland and Mesa versioning
-OCCT viewer renders into an offscreen OpenGL framebuffer, but Wayland support for 
-compatible buffering was only recently introduced with Mesa v25.2.
+OCCT viewer renders into an offscreen OpenGL framebuffer, but Wayland support for compatible 
+buffering was only recently introduced with Mesa v25.2.
 At time of writing (OCCT v8.01) Wayland rendering will fail on earlier Mesa verions.
 
-Rolling release distros such as Arch will already include the compatible Mesa version or later, 
-but other distros such as Debian may require additional repositories such as [rel]-backports.
-Consult the documentation for your own Unix like distribution.
+Rolling release distros such as Arch Linux should already include the compatible Mesa version or later, 
+but other distros may require additional repository sources such as `[release]-backports` on Debian.
+Consult the documentation for your own Unix-like distribution.
 
-### Run-time vs Compile-time paths for X11 / Wayland switching
-Most Unix like distributions come with a login option to switch between X11 or Wayland. 
-When running Wayland, apps may fall back on XWayland mode for compatibility.
+### Run-time vs Compile-time paths for X11 / Wayland contexts
+Most Unix-like distributions have a login option to switch between X11 or Wayland. 
+When using Wayland, apps may fall back on XWayland mode for X11 compatibility.
 
-Gtk is in the process of deprecating X11, and related functions are already marked as such in GTK4.
+Gtk is in the process of deprecating X11, and related functions are already marked as such in version 4.
 It however remains desireable for apps to be compatible with both compositor paths for the forseeable future.
 
-At time of writing (OCCT v8.01) switching between Wayland / X11 is a compile-time option baked into 
-the library's `USE_XLIB` flag. It is not possible to make available both the X11 and (Wayland) EGL code paths 
-to the run-time.
-Modern user expectations are however that a single compiled application source will cater for both 
-compositors as a run-time option.
+At the time of writing, switching between Wayland and X11 for OCCT is a compile-time option via it's 
+`USE_XLIB` flag. It is not possible to make both code paths available to it's run-time.
+Modern user expectations are however that applications will switch compositor contexts seamlessly,
+which implies allowing both compositor paths from a single binary.
 
-This widget has implemented compositor switching as a runtime decision, but awaits suitable upstream development
-in OCCT for it to be effective. Until then you will need to compile for both Wayland and X11, and distribute
-both versions of your app - or use a XWayland fallback while GTK still supports it.
-
-
-
+This widget has implemented compositor switching as a run-time option, but it awaits suitable upstream development
+in OCCT to be practically usable in this way. Until then you will need to: 
+- compile both Wayland and X11 OCCT libraries and distribute two versions of your app with desired links, or
+- compile OCCT for X11 and use a XWayland fallback (while GTK still supports it).
 
