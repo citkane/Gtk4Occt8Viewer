@@ -5,6 +5,7 @@ occt_configure() {
     local build_dir=$2
     local prefix=$3
     local -a flags=("${@:4}")
+    local -a modules=()
     local options=(
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE
@@ -14,10 +15,9 @@ occt_configure() {
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
     )
-    local modules=(-DBUILD_MODULE_Visualization=ON)
 
     parse_options options "${flags[@]:-}"
-    parse_modules modules "${flags[@]:-}"
+    parse_modules modules "${flags[@]:-} Visualization ModelingAlgorithms"
     rm -f $src_dir/compile_commands.json
 
     export CFLAGS="-w"
@@ -62,6 +62,7 @@ occt_uninstall() {
 
     uninstall_manifest "$manifest"
 }
+
 occt_clean() {
     local build_dir=$1
     cmake --build $build_dir --target clean
@@ -100,6 +101,7 @@ parse_modules() {
     local -n ref_modules=$1
     local -a flags=("${@:2}")
     local -a module_flags
+    local vs=Visualization=OFF
     local ma=ModelingAlgorithms=OFF
     local fc=FoundationClasses=OFF
     local af=ApplicationFramework=OFF
@@ -108,6 +110,7 @@ parse_modules() {
     local md=ModelingData=OFF
     for flag in ${flags[@]:-}; do
         case $flag in
+        Visualization) vs=Visualization=ON ;;
         ModelingAlgorithms) ma=ModelingAlgorithms=ON ;;
         FoundationClasses) fa=FoundationClasses=ON ;;
         ApplicationFramework) af=ApplicationFramework=ON ;;
@@ -116,7 +119,7 @@ parse_modules() {
         ModelingData) md=ModelingData=ON ;;
         esac
     done
-    modules_flags+=($ma $fc $af $de $d $md)
+    modules_flags+=($vs $ma $fc $af $de $d $md)
     for module in "${modules_flags[@]}"; do
         ref_modules+=("-DBUILD_MODULE_$module")
     done

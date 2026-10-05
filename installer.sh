@@ -52,14 +52,15 @@ print_help() {
     echo "<module>                                 - additional OCCT modules to build"
     echo
     echo "[install] [occt] <flags|modules> (optional) ------------------------------------"
-    echo "By default only Visualization is built"
+    echo "By default Visualization and ModelingAlogorithms is built"
     echo "--------------------------------------------------------------------------------"
+    echo "<Visualization>"
     echo "<ModelingAlgorithms>"
+    echo "<ModelingData>"
     echo "<FoundationClasses>"
     echo "<ApplicationFramework>"
     echo "<DataExchange>"
     echo "<Draw>"
-    echo "<ModelingData>"
     echo
     echo "[install] [viewer] <flags> (optional) --------------------------------------------"
     echo "--------------------------------------------------------------------------------"

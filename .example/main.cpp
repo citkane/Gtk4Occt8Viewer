@@ -1,12 +1,16 @@
+#include <AIS_DisplayMode.hxx>
 #include <peel/Gio/ApplicationFlags.h>
 #include <peel/Gtk/Gtk.h>
 
 #include <AIS_AnimationCamera.hxx>
 #include <AIS_InteractiveContext.hxx>
+#include <AIS_Shape.hxx>
 #include <AIS_ViewCube.hxx>
+#include <BRepPrimAPI_MakeBox.hxx>
 #include <Quantity_NameOfColor.hxx>
 #include <Quantity_TypeOfColor.hxx>
 #include <Standard_Version.hxx>
+#include <TopoDS_Solid.hxx>
 
 #include <Viewer.hpp>
 
@@ -83,10 +87,17 @@ static void append_ui_buttons(Box *app_box, Viewer *viewer) {
 }
 
 static void append_ui_viewer(Box *app_box, Viewer *viewer) {
+    auto occ = viewer->occ;
+    auto box_shape = BRepPrimAPI_MakeBox(100.0, 50.0, 90.0).Shape();
+    auto ais_shape = new AIS_Shape(box_shape);
+
     viewer->set_hexpand(true);
     viewer->set_vexpand(true);
     viewer->set_default_scene();
-    viewer->occ.view->SetBackgroundColor((Quantity_NameOfColor)0);
+
+    occ.view->SetBackgroundColor((Quantity_NameOfColor)0);
+    occ.ctx->Display(ais_shape, AIS_WireFrame, 0, false);
+
     app_box->append(viewer);
 }
 
