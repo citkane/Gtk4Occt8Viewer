@@ -11,6 +11,7 @@
 #include <Quantity_NameOfColor.hxx>
 #include <Quantity_TypeOfColor.hxx>
 #include <Standard_Version.hxx>
+#include <peel/Gtk/Orientation.h>
 
 using namespace peel;
 using namespace Gtk4::Occt8;
@@ -32,7 +33,7 @@ int main(int argc, char **argv) {
 // ============================================================
 static void append_ui_buttons(Box *app_box, Viewer *viewer);
 static void append_ui_viewer(Box *app_box, Viewer *viewer);
-static void append_ui_controller(Box *app_box, Viewer *viewer);
+static void append_ui_background(Box *app_box, Viewer *viewer);
 static void build_ui(Gio::Application *application) {
     auto app = application->cast<Application>();
     auto app_box = Box::create(Orientation::VERTICAL, 6);
@@ -41,7 +42,7 @@ static void build_ui(Gio::Application *application) {
 
     append_ui_buttons(app_box, viewer);
     append_ui_viewer(app_box, viewer);
-    append_ui_controller(app_box, viewer);
+    append_ui_background(app_box, viewer);
 
     window->set_title("Gtk4::Occt8::Viewer example application");
     window->set_child(std::move(app_box));
@@ -92,9 +93,18 @@ static void append_ui_viewer(Box *app_box, Viewer *viewer) {
     app_box->append(viewer);
 }
 
-static void append_ui_controller(Box *app_box, Viewer *viewer) {
+static void append_ui_background(Box *app_box, Viewer *viewer) {
+    int space = 8;
+    auto box = Box::create(Orientation::HORIZONTAL, space);
     auto adjustment = Adjustment::create(0.0, 0.0, 508.0, 1.0, 0.0, 0.0);
     auto slider = Scale::create(Orientation::HORIZONTAL, adjustment);
+    auto label = Label::create("Background:");
+
+    label->set_margin_start(space);
+    label->set_margin_bottom(space);
+
+    slider->set_margin_end(space);
+    slider->set_margin_bottom(space);
     slider->set_hexpand(true);
     slider->connect_change_value([viewer](Range *, ScrollType, double val) {
         if (val < 0 || val > 508)
@@ -108,7 +118,9 @@ static void append_ui_controller(Box *app_box, Viewer *viewer) {
         return false;
     });
 
-    app_box->append(std::move(slider));
+    box->append(std::move(label));
+    box->append(std::move(slider));
+    app_box->append(std::move(box));
 }
 
 // ============================================================
