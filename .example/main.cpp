@@ -1,5 +1,7 @@
 #include <peel/Gdk/Gdk.h>
 #include <peel/Gio/ApplicationFlags.h>
+#include <peel/Gtk/ApplicationWindow.h>
+#include <peel/Gtk/ColorDialogButton.h>
 #include <peel/Gtk/Gtk.h>
 
 #include "Viewer.hpp"
@@ -51,16 +53,29 @@ static void on_about_clicked(Button *bttn, Viewer *viewer);
 static void on_quit_clicked(Gtk::Button *bttn);
 static void toggle_scene_stats(Viewer *viewer);
 static void append_ui_buttons(Box *app_box, Viewer *viewer) {
+    int space = 6;
+
     auto about_bttn = Button::create_with_label("About");
     auto stats_bttn = Button::create_with_label("Stats");
     auto quit_bttn = Button::create_with_label("Quit");
-    auto buttons = Box::create(Orientation::HORIZONTAL, 6);
+    auto buttons = Box::create(Orientation::HORIZONTAL, space);
 
-    quit_bttn->connect_clicked(on_quit_clicked, false);
-    stats_bttn->connect_clicked(
-        [viewer](Button *) { toggle_scene_stats(viewer); }, false);
+    about_bttn->set_margin_start(space);
     about_bttn->connect_clicked(
         [viewer](Button *bttn) { on_about_clicked(bttn, viewer); }, false);
+
+    stats_bttn->set_hexpand(true);
+    stats_bttn->set_halign(Align::START);
+    stats_bttn->connect_clicked(
+        [viewer](Button *) { toggle_scene_stats(viewer); }, false);
+
+    quit_bttn->set_halign(Align::END);
+    quit_bttn->connect_clicked(on_quit_clicked, false);
+    quit_bttn->set_margin_end(space);
+
+    for (auto *bttn : {&about_bttn, &stats_bttn, &quit_bttn}) {
+        (*bttn)->set_margin_top(space);
+    }
 
     buttons->set_hexpand(true);
     buttons->append(std::move(about_bttn));
