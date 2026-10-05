@@ -58,14 +58,6 @@ list_dependencies() {
         echo "Please check your version, or run the install script to have it checked for you."
 }
 
-uninstall_manifest() {
-    local build_dir=$1
-    local path
-    while IFS= read -r path; do
-        path=${path%$'\r'}
-        [[ -n $path ]] && rm -v -- "$path"
-    done <"$build_dir/install_manifest.txt"
-}
 echo_mesa_needed() {
     echo "For Wayland EGL off-screen rendering on OCCT, Mesa >= $MIN_MESA_V is required."
 }
