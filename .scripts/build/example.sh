@@ -29,7 +29,7 @@ example_install() {
 example_uninstall() {
     local build_dir=$1
     local manifest="$build_dir/install_manifest.txt"
-    [[ ! -e "$manifest" ]] && retunr 0
+    [[ ! -e "$manifest" ]] && return 0
 
     uninstall_manifest "$manifest"
 }
