@@ -42,6 +42,10 @@ cmake --install .build
 ## Consuming the widget
 The built library is a gobject widget, so it can be consumed as C or C++.
 
+Ensure that the Widget is installed, on your PATH and then use CMake (or equivalent)
+`find_package(Gtk4Occt8Viewer REQUIRED)` and link the `Gtk4Occt8Viewer` library to your 
+project target.
+
 A minimal Peel C++ application example:
 ```cpp
 #include <peel/Gio/ApplicationFlags.h>
