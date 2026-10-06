@@ -1,6 +1,8 @@
 # Gtk Occt Viewer Widget
 A drop in Gtk widget for the OpenCascade Technologies [OCCT](https://github.com/Open-Cascade-SAS/OCCT) viewer.
 
+<img width="600"  alt="GTK OCCT Viewer Widget" src="https://github.com/user-attachments/assets/6edfad45-5d77-4489-bf21-e449007e4bc1" />
+
 Requirements:
 - OCCT v8+
 - Gtk v4.12+
