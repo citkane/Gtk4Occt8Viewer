@@ -7,8 +7,6 @@
 #include <Graphic3d_DiagnosticInfo.hxx>
 #include <Quantity_NameOfColor.hxx>
 
-using occ::handle;
-
 IMPLEMENT_STANDARD_RTTIEXT(Gtk4::Occt8::ViewerPrinter, Message_Printer)
 PEEL_CLASS_IMPL(Gtk4::Occt8::Viewer, "Gtk4Occt8Viewer", peel::Gtk::GLArea)
 using namespace Gtk4::Occt8;
