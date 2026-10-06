@@ -9,6 +9,9 @@ Requirements:
 - [Peel](https://gitlab.gnome.org/bugaevc/peel) (Gtk C++ wrapper)
 - Mesa 25.2+ (For Wayland compatibility)
 
+> [!NOTE]
+> This project is in early development. Expect issues!
+
 ## Building the widget
 Ensure that you have Gtk and OCCT installed and on your PATH.
 
@@ -66,6 +69,7 @@ static void build_ui(Gio::Application *application) {
     //     ViewController *ctrl;
     // }
 
+	viewer->set_default_scene();
     window->set_child(std::move(viewer));
     window->set_default_size(800, 600);
     window->present();
@@ -113,7 +117,7 @@ These are development builds, and should not be used for production.
 ### Wayland and Mesa versioning
 OCCT viewer renders into an offscreen OpenGL framebuffer, but Wayland support for compatible 
 buffering was only recently introduced with Mesa v25.2.
-At time of writing (OCCT v8.01) Wayland rendering will fail on earlier Mesa verions.
+At time of writing (OCCT v8.01) Wayland rendering will fail on earlier Mesa versions.
 
 Rolling release distros such as Arch Linux should already include the compatible Mesa version or later, 
 but other distros may require additional repository sources such as `[release]-backports` on Debian.

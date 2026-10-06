@@ -1,15 +1,11 @@
 #ifndef GTK4_OCCT8_VIEWER_H
 #define GTK4_OCCT8_VIEWER_H
 
-#include <cstdlib>
-#include <cstring>
-#include <glib.h>
-
 #include "ViewController.hpp"
-#include <Aspect_Drawable.hxx>
-#include <Aspect_NeutralWindow.hxx>
 
 #include <AIS_ViewCube.hxx>
+#include <Aspect_Drawable.hxx>
+#include <Aspect_NeutralWindow.hxx>
 #include <Message.hxx>
 #include <OpenGl_GraphicDriver.hxx>
 #include <V3d_View.hxx>
@@ -22,6 +18,7 @@
 
 namespace Gtk4 {
 namespace Occt8 {
+
 using namespace peel;
 using Vec2i = NCollection_Vec2<int>;
 using Vec2d = NCollection_Vec2<double>;
@@ -52,6 +49,7 @@ class Viewer final : public Gtk::GLArea {
         occ::handle<V3d_Viewer> viewer;
         occ::handle<V3d_View> view;
         occ::handle<AIS_InteractiveContext> ctx;
+        // @TODO - how to get a occ::handle on ViewController?
         ViewController *ctrl;
     } occ;
 
@@ -129,7 +127,6 @@ DEFINE_STANDARD_HANDLE(ViewerPrinter, Message_Printer)
 
 } // namespace Occt8
 } // namespace Gtk4
-#endif // #ifndef GTK4_OCCT8_VIEWER_H
 
 // ====================================================
 // Macros to switch between Wayland / x11 contexts
@@ -165,4 +162,4 @@ DEFINE_STANDARD_HANDLE(ViewerPrinter, Message_Printer)
                CHECK_ENV_VAL("XDG_SESSION_TYPE", "wayland");                   \
     }())
 
-// #define USE_GLES ([]() -> bool { return CHECK_ENV("USE_GLES"); }())
+#endif // #ifndef GTK4_OCCT8_VIEWER_H

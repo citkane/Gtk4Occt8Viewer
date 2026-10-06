@@ -6,8 +6,8 @@
 
 namespace Gtk4 {
 namespace Occt8 {
-using IACtx = Handle(AIS_InteractiveContext);
-using View = Handle(V3d_View);
+using IACtx = occ::handle<AIS_InteractiveContext>;
+using View = occ::handle<V3d_View>;
 
 // GObject classes are not ideal for multiple inheritence,
 // so we create a seperate AIS_ViewController class and give it the Viewer
@@ -15,13 +15,13 @@ using View = Handle(V3d_View);
 class Viewer;
 class ViewController final : public AIS_ViewController {
 
-public:
-  explicit ViewController(Viewer &owner) : gobj_viewer(owner) {};
-  virtual void handleViewRedraw(const IACtx &ctx, const View &view) override;
+  public:
+    explicit ViewController(Viewer &owner) : gobj_viewer(owner) {};
+    virtual void handleViewRedraw(const IACtx &ctx, const View &view) override;
 
-protected:
-  Viewer &gobj_viewer;
-  guint animation_cb = 0;
+  protected:
+    Viewer &gobj_viewer;
+    guint animation_cb = 0;
 };
 
 } // namespace Occt8
