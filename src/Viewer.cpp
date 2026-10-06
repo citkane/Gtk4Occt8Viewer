@@ -1,14 +1,13 @@
 #include "Viewer.hpp"
+#include "gtk/Gtk_FrameBuffer.hpp"
+#include "gtk/input_map.hpp"
 
 #include <AIS_AnimationCamera.hxx>
 #include <AIS_InteractiveContext.hxx>
 #include <Graphic3d_DiagnosticInfo.hxx>
-#include <Message_Messenger.hxx>
 #include <Quantity_NameOfColor.hxx>
-#include <peel/Gdk/GLAPI.h>
 
-#include "gtk/Gtk_FrameBuffer.hpp"
-#include "gtk/input_map.hpp"
+using occ::handle;
 
 IMPLEMENT_STANDARD_RTTIEXT(Gtk4::Occt8::ViewerPrinter, Message_Printer)
 PEEL_CLASS_IMPL(Gtk4::Occt8::Viewer, "Gtk4Occt8Viewer", peel::Gtk::GLArea)
@@ -19,9 +18,9 @@ void Viewer::init(Class *) {
     win_native = 0;
     prev_pix_r = 0;
     occ_pix_r = 1;
-    g_message(USE_WAYLAND ? "Use Wayland" : "No use Wayland");
-    g_message(USE_GLES ? "Use GLES" : "No use GLES");
-    g_message(USE_X11 ? "Use X11" : "No use X11");
+    g_print("%s\n", RUN_WAYLAND ? "Use Wayland" : "No use Wayland");
+    g_print("%s\n", USE_GLES ? "Use GLES" : "No use GLES");
+    g_print("%s\n", RUN_X11 ? "Use X11" : "No use X11");
     set_allowed_apis(USE_GLES ? Gdk::GLAPI::GLES
                               : Gdk::GLAPI::GL); // requires GTK4 v4.12+
     set_can_focus(true);
@@ -30,48 +29,38 @@ void Viewer::init(Class *) {
 
     divert_occ_printer();
     register_input();
+    init_driver();
+    init_viewer();
 
     connect_realize([this](Gtk::Widget *) {
         make_current();
-        const Gdk::GLAPI gl_api = get_context()->get_api();
-        g_message(gl_api == Gdk::GLAPI::GLES ? "Using GlES"
-                                             : "Using Desktop GL");
-        init_driver();
-        init_viewer(); // init on realise so that user defaults are prefferred
+        GLib::Error *err = get_error();
+        if (err != NULL)
+            g_error("%s", err->message);
+
         init_ctx();
-
-        g_message("Widget was realised");
-    });
-
-    connect_render([this](Gtk::GLArea *, Gdk::GLContext *) {
-        const int gtk_w = get_width();
-        const int gtk_h = get_height();
-        Gdk::Surface *srfc = get_context()->get_surface();
-        const double new_gtk_pix_r = srfc->get_scale();
-
-        if (!is_realised) {
-            init_window(gtk_w, gtk_h, new_gtk_pix_r);
-            wrap_gl_fbo();
-            is_realised = true;
-            if (print_gl)
-                print_gl_info(verbose_gl);
-
-            g_message("Window was realised");
-        }
-
-        // It is expected that dpi changes if moved to different screen
-        // @TODO Examine behaviour on multi-screen when available
-        set_pixel_ratio(gtk_w, new_gtk_pix_r);
-        occ.ctrl->FlushViewEvents(occ.ctx, occ.view, true);
-        return true;
+        g_print("Widget was realised\n");
     });
 
     connect_resize([this](Gtk::GLArea *, int w, int h) {
-        if (!is_realised)
-            return;
+        if (!is_realised) {
+            Gdk::Surface *srfc = get_context()->get_surface();
+            const double gtk_pix_r = srfc->get_scale();
+            init_window(w, h, gtk_pix_r);
+            wrap_gl_fbo();
+            // @TODO - What happens with multiple monitors with differing pixel
+            // densities?
+            set_pixel_ratio(w, gtk_pix_r);
+            g_print("Window was realised\n");
+
+            is_realised = true;
+            if (print_gl)
+                print_gl_info(verbose_gl);
+        }
 
         w = ceil(w * occ_pix_r);
         h = ceil(h * occ_pix_r);
+
         gl.fbo->ChangeViewport(w, h);
         occ.win->SetSize(w, h);
         occ.view->MustBeResized();
@@ -81,7 +70,11 @@ void Viewer::init(Class *) {
             sub_view->MustBeResized();
             sub_view->Invalidate();
         }
+    });
+
+    connect_render([this](Gtk::GLArea *, Gdk::GLContext *) {
         occ.ctrl->FlushViewEvents(occ.ctx, occ.view, true);
+        return true;
     });
 
     connect_unrealize([this](Gtk::Widget *) {
@@ -90,7 +83,6 @@ void Viewer::init(Class *) {
             occ.view.Nullify();
             occ.viewer.Nullify();
         }
-        make_current();
         gl.disp.Nullify();
     });
 }
@@ -114,46 +106,31 @@ void Viewer::init_viewer() {
     occ.ctrl = new ViewController(*this);
     occ.viewer = new V3d_Viewer(gl.driver);
     occ.ctx = new AIS_InteractiveContext(occ.viewer);
-    occ.cube = new AIS_ViewCube();
-    occ.camera = new AIS_AnimationCamera("default", occ.view);
-
-    occ.viewer->SetDefaultBackgroundColor(Quantity_NOC_DARKSLATEGRAY);
-    occ.viewer->SetDefaultLights();
-    occ.viewer->SetLightOn();
-    occ.viewer->ActivateGrid(Aspect_GT_Rectangular, Aspect_GDM_Lines);
-
     occ.view = occ.viewer->CreateView();
     occ.view->SetImmediateUpdate(false);
-
-    occ.cube->SetViewAnimation(occ.camera);
-    occ.cube->SetFixedAnimationLoop(false);
-    occ.cube->SetAutoStartAnimation(true);
-
-    occ.ctx->Display(occ.cube, 0, 0, false);
-    if (show_stats)
-        render_stats();
-}
-
-void Viewer::render_stats() {
-    occ.view->ChangeRenderingParams().ToShowStats = true;
-    occ.view->ChangeRenderingParams().CollectedStats =
-        (Graphic3d_RenderingParams::
-             PerfCounters)(Graphic3d_RenderingParams::PerfCounters_FrameRate |
-                           Graphic3d_RenderingParams::PerfCounters_Triangles);
 }
 
 void Viewer::init_ctx() {
-    const bool ctx_compat = gl.driver->Options().contextCompatible;
+    Gdk::GLAPI gl_api = get_context()->get_api();
+    auto ctx = gl_api == Gdk::GLAPI::GLES ? "GLES" : "Desktop GL";
+    bool ctx_compat = gl.driver->Options().contextCompatible;
+    g_print("Got %s context.\n", ctx);
 
-    if (USE_X11 && !USE_GLES)
-        init_x11_win();
+#if IS_NIX || USE_MACX11 || (IS_WIN && !USE_GLES)
+    if (RUN_X11 || IS_WIN)
+        init_native_win();
+#endif
 
     gl.ctx = new OpenGl_Context();
     if (!gl.ctx->Init(!ctx_compat))
-        g_error("Failed to initialise gl context");
+        g_error("Failed to initialise OCCT gl context");
 
-    if (USE_WAYLAND || USE_GLES)
+    g_print("Initialised OCCT gl context\n");
+
+#if (!IS_WIN || USE_GLES) && !USE_MACX11
+    if (RUN_WAYLAND || USE_GLES)
         init_egl_ctx();
+#endif
 }
 
 void Viewer::init_window(int gtk_x, int gtk_y, float gtk_r) {
@@ -161,22 +138,34 @@ void Viewer::init_window(int gtk_x, int gtk_y, float gtk_r) {
     const int occ_y = ceil(gtk_y * gtk_r);
     const RenderingContext ctx_gl = gl.ctx->RenderingContext();
 
-    g_debug("def occt resltn: %u",
-            occ.view->RenderingParams().Resolution); // 72
     occ.win = new Aspect_NeutralWindow();
     occ.win->SetVirtual(true);
     occ.win->SetNativeHandle(win_native);
     occ.win->SetSize(occ_x, occ_y);
-    // @TODO why 96 and not the default 72
+    // @TODO why 96 and not the default 72?
     occ.view->ChangeRenderingParams().Resolution = 96.0;
-    g_debug("init occt resltn: %u", occ.view->RenderingParams().Resolution);
-    occ.view->SetWindow(occ.win, ctx_gl);
-    occ.view->MustBeResized();
-    occ.view->Invalidate();
-    // @TODO We are at init - can there be subviews yet?
-    for (const occ::handle<V3d_View> &sub_view : occ.view->Subviews()) {
-        sub_view->MustBeResized();
-        sub_view->Invalidate();
+    try {
+        occ.view->SetWindow(occ.win, ctx_gl);
+        occ.view->MustBeResized();
+        occ.view->Invalidate();
+        // @TODO We are at init - can there be subviews yet?
+        for (const occ::handle<V3d_View> &sub_view : occ.view->Subviews()) {
+            sub_view->MustBeResized();
+            sub_view->Invalidate();
+        }
+    } catch (const Standard_Failure &err) {
+        std::string mssg = "";
+        mssg += "GTK4 created a context, but OCCT rejected it.\n"
+                "This is possibly a hardware rendering issue on your system.";
+#if IS_WIN
+        mssg += "\nYou could try llvmpipe software rendering as a fallback: "
+                "https://github.com/pal1000/mesa-dist-win";
+#elif IS_NIX
+        mssg += "\nOCCT needs a minimum mesa version of ";
+        mssg += std::to_string(MIN_MESA_V);
+#endif
+        g_critical("%s\n", mssg.c_str());
+        g_error("%s", err.what());
     }
 }
 
@@ -186,6 +175,8 @@ void Viewer::wrap_gl_fbo() {
     gl.driver->GetSharedContext()->SetDefaultFrameBuffer(gl.fbo);
     if (!gl.fbo->InitWrapper(gl.ctx))
         g_error("Could not wrap the gl framebuffer");
+
+    g_debug("gl fbo was wrapped");
 };
 
 void Viewer::set_pixel_ratio(int gtk_x, float gtk_r) {
@@ -307,31 +298,34 @@ void Viewer::register_input() {
         },
         false);
 
-    // @TODO get_current_view_state seems to handle modifiers, but confirm that
-    // this listener override is not required.
-    //
-    // ctrl_mod->connect_modifiers(
-    //     [this](Gtk::EventControllerKey *ctrl_key,
-    //            Gdk::ModifierType type) -> bool {
-    //       auto pressed = ctrl_key->get_current_event_state();
-    //       logger::info("pressed:", std::to_string((int)pressed),
-    //                    "state:", std::to_string((int)type));
-    //       // key_mods = to_v_key_mod(type);
-    //       // return key_mods != 0;
-    //       return false;
-    //     },
-    //     false);
-
     add_controller(ctrl_motion);
     add_controller(ctrl_scroll);
     add_controller(ctrl_click);
     add_controller(ctrl_mod);
 }
 
+// =============================
+// user helpers
+// =============================
+void Viewer::set_default_scene() {
+    occ.viewer->SetDefaultLights();
+    occ.viewer->SetLightOn();
+    occ.viewer->ActivateGrid(Aspect_GT_Rectangular, Aspect_GDM_Lines);
+
+    using ViewCube = occ::handle<AIS_ViewCube>;
+    using AnimationCamera = occ::handle<AIS_AnimationCamera>;
+    ViewCube cube = new AIS_ViewCube();
+    AnimationCamera camera = new AIS_AnimationCamera("default", occ.view);
+    cube->SetViewAnimation(camera);
+    cube->SetFixedAnimationLoop(false);
+    cube->SetAutoStartAnimation(true);
+    occ.ctx->Display(cube, 0, 0, false);
+}
+
 void Viewer::print_gl_info(bool verbose) {
     if (!is_realised) {
-        g_warning(
-            "GL diagnotics can only be printed after the window is realised");
+        g_warning("GL diagnotics can only be printed after the window is "
+                  "realised");
         return;
     }
 
@@ -364,10 +358,8 @@ void Viewer::divert_occ_printer() {
 // peel GObject intitialiser
 // =============================
 inline void Viewer::Class::init() {}
-FloatPtr<Viewer> Viewer::create(bool show_stats, bool print_gl,
-                                bool verbose_gl) {
+FloatPtr<Viewer> Viewer::create(bool print_gl, bool verbose_gl) {
     auto viewer = Object::create<Viewer>();
-    viewer->set_show_stats(show_stats);
     viewer->set_print_gl(print_gl);
     viewer->set_verbose_gl(verbose_gl);
     return viewer;
@@ -378,16 +370,9 @@ template <typename F> void Viewer::define_properties(F &f) {
         .get(&Viewer::get_print_gl)
         .set(&Viewer::set_print_gl)
         .flags(peel::GObject::ParamFlags::READWRITE);
-
-    f.prop(prop_show_stats(), false)
-        .get(&Viewer::get_show_stats)
-        .set(&Viewer::set_show_stats)
-        .flags(peel::GObject::ParamFlags::READWRITE);
 }
 
-bool Viewer::get_show_stats() const { return show_stats; }
 bool Viewer::get_print_gl() const { return print_gl; }
 bool Viewer::get_verbose_gl() const { return print_gl; }
-void Viewer::set_show_stats(bool value) { show_stats = value; }
 void Viewer::set_print_gl(bool value) { print_gl = value; }
 void Viewer::set_verbose_gl(bool value) { verbose_gl = value; }

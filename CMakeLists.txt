@@ -1,37 +1,64 @@
 cmake_minimum_required(VERSION 3.16)
 project(
-    Gtk4Occt8Viewer
-    VERSION 0.0.0
-    DESCRIPTION "Gtk4 OCCT8 viewer widget"
-    LANGUAGES C CXX
-)
-set(CMAKE_C_STANDARD 20)
-set(CMAKE_CXX_STANDARD 20)
+  Gtk4Occt8Viewer
+  VERSION 0.0.0
+  DESCRIPTION "Gtk4 OCCT8 viewer widget"
+  LANGUAGES C CXX)
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME})
-find_package(PkgConfig REQUIRED)
-include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
-include(dependencies)
-# include(compile_defs)
-include(vars)
+set(PROJ_INCDIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+include(standards)
+include(env)
+include(sourcefiles)
+include(libraries)
 include(pkgconfig)
 
-add_compile_options("-Wall" "-Wextra" "-fPIC")
-set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/x11/init_x11_win.cpp"
-    # /home/michael/Work/tries/2026-08-30-viewer/src/x11/init_x11_win.cpp
-    PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-declarations"
-)
-add_library(${PROJECT_NAME} OBJECT ${viewer_SRC})
-target_link_libraries(${PROJECT_NAME} PUBLIC ${PUBLIC_LIBS})
-target_link_libraries(${PROJECT_NAME} PRIVATE ${PRIVATE_LIBS})
-target_include_directories(${PROJECT_NAME} PUBLIC ${INCLUDE_DIRS})
+# add_compile_options("-Wall" "-Wextra" "-fPIC")
+add_compile_options("-Wall" "-Wextra")
+add_library(${PROJECT_NAME} SHARED ${PROJ_SRCS})
 
-add_library(${PROJECT_NAME}_shared SHARED $<TARGET_OBJECTS:${PROJECT_NAME}>)
-add_library(${PROJECT_NAME}_static STATIC $<TARGET_OBJECTS:${PROJECT_NAME}>)
+target_include_directories(${PROJECT_NAME} PUBLIC ${PROJ_INCDIR}
+                                                  ${OpenCASCADE_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJ_PRIVATE_LIBS})
+target_link_libraries(${PROJECT_NAME}
+                      PUBLIC ${OpenCASCADE_Visualization_LIBRARIES})
+if(IS_NIX)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE IS_NIX)
+endif()
 
-set(TARGETS ${PROJECT_NAME}_shared ${PROJECT_NAME}_static)
-set_target_properties(${TARGETS} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
+if(IS_WIN AND USE_GLES)
+  target_compile_options(${PROJECT_NAME}
+                         PRIVATE "SHELL:-idirafter ${EGL_INCDIR}")
+endif()
+
+if(IS_WIN)
+  target_link_options(${PROJECT_NAME} PRIVATE -Wl,--export-all-symbols)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX
+                                                     _CRT_SECURE_NO_WARNINGS)
+endif()
+# target_link_options( ${PROJECT_NAME} PRIVATE
+# "-Wl,--disable-new-dtags,-rpath,${OpenCASCADE_LIBRARY_DIR}" )
+
+# set_target_properties( TARGET ${PROJECT_NAME} APPEND PROPERTIES BUILD_RPATH
+# "$<TARGET_FILE_DIR:${OpenCASCADE_LIBRARY_DIR}>" INSTALL_RPATH
+# "$<TARGET_FILE_DIR:${OpenCASCADE_LIBRARY_DIR}>" )
+# target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJ_PRIVATE_LIBS})
+# target_link_libraries(${PROJECT_NAME} PUBLIC ${PROJ_PUBLIC_LIBS})
+
+# add_library(${PROJECT_NAME}_shared SHARED $<TARGET_OBJECTS:${PROJECT_NAME}>)
+# target_link_libraries(${PROJECT_NAME}_shared PRIVATE ${PROJ_PRIVATE_LIBS})
+# target_link_libraries(${PROJECT_NAME}_shared PUBLIC ${PROJ_PUBLIC_LIBS})
+# target_include_directories(${PROJECT_NAME}_shared PUBLIC ${PROJ_INCDIRS})
+
+# add_library(${PROJECT_NAME}_static STATIC $<TARGET_OBJECTS:${PROJECT_NAME}>)
+# target_link_libraries(${PROJECT_NAME}_static PRIVATE ${PROJ_PRIVATE_LIBS})
+# target_link_libraries(${PROJECT_NAME}_static PUBLIC ${PROJ_PUBLIC_LIBS})
+# target_include_directories(${PROJECT_NAME}_static PUBLIC ${PROJ_INCDIRS})
+
+# set(PROJ_TARGETS ${PROJECT_NAME}_shared ${PROJECT_NAME}_static)
+# set_target_properties(${PROJ_TARGETS} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 
 include(install)
+
+# target_include_directories(${PROJECT_NAME} PUBLIC ${INCLUDE_DIRS})
+# set(PROJ_INCDIRS ${PROJ_INCDIR})

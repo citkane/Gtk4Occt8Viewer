@@ -1,18 +1,22 @@
 #ifndef GTK4_OCCT8_VIEWER_H
 #define GTK4_OCCT8_VIEWER_H
 
-#include "ViewController.hpp"
-#include <AIS_ViewCube.hxx>
-#include <Aspect_Drawable.hxx>
-#include <Aspect_NeutralWindow.hxx>
-#include <Message.hxx>
-#include <Message_Gravity.hxx>
-#include <OpenGl_GraphicDriver.hxx>
-#include <V3d_View.hxx>
-#include <V3d_Viewer.hxx>
 #include <cstdlib>
 #include <cstring>
 #include <glib.h>
+
+#include "ViewController.hpp"
+#include <Aspect_Drawable.hxx>
+#include <Aspect_NeutralWindow.hxx>
+
+#include <AIS_ViewCube.hxx>
+#include <Message.hxx>
+#include <OpenGl_GraphicDriver.hxx>
+#include <V3d_View.hxx>
+#include <V3d_Viewer.hxx>
+
+#include <peel/GLib/ErrorType.h>
+#include <peel/Gdk/GLAPI.h>
 #include <peel/Gtk/Gtk.h>
 #include <peel/class.h>
 
@@ -35,22 +39,19 @@ class Viewer final : public Gtk::GLArea {
   public:
     /**
      * @brief Create a GObject of the Gtk4Occt8Viewer widget
-     * @param show_stats Show live rendering stats in the Viewer window
      * @param print_gl Print OpenGL diagnostics to the console
      * @param verbose_gl Use verbose OpenGL diagnostics
      * */
-    static FloatPtr<Viewer> create(bool show_stats = false,
-                                   bool print_gl = false,
+    static FloatPtr<Viewer> create(bool print_gl = false,
                                    bool verbose_gl = false);
     void print_gl_info(bool verbose);
+    void set_default_scene();
 
-    struct {
+    struct OCC {
         occ::handle<Aspect_NeutralWindow> win;
         occ::handle<V3d_Viewer> viewer;
         occ::handle<V3d_View> view;
         occ::handle<AIS_InteractiveContext> ctx;
-        occ::handle<AIS_ViewCube> cube;
-        occ::handle<AIS_AnimationCamera> camera;
         ViewController *ctrl;
     } occ;
 
@@ -62,9 +63,8 @@ class Viewer final : public Gtk::GLArea {
     void init_window(int gtk_w, int gtk_h, float gtk_r);
     void set_pixel_ratio(int gtk_w, float gtk_r);
     void register_input();
-    void init_x11_win();
+    void init_native_win();
     void init_egl_ctx();
-    void render_stats();
     void divert_occ_printer();
 
     struct {
@@ -85,16 +85,12 @@ class Viewer final : public Gtk::GLArea {
     void init(Class *);
     template <typename F> static void define_properties(F &f);
     // Members for peel GObject constructor params
-    PEEL_PROPERTY(bool, show_stats, "show-stats")
     PEEL_PROPERTY(bool, print_gl, "print-gl")
     PEEL_PROPERTY(bool, verbose_gl, "verbose-gl")
-    bool show_stats;
     bool print_gl;
     bool verbose_gl;
-    bool get_show_stats() const;
     bool get_print_gl() const;
     bool get_verbose_gl() const;
-    void set_show_stats(bool value);
     void set_print_gl(bool value);
     void set_verbose_gl(bool value);
 };
@@ -138,26 +134,6 @@ DEFINE_STANDARD_HANDLE(ViewerPrinter, Message_Printer)
 // ====================================================
 // Macros to switch between Wayland / x11 contexts
 // ====================================================
-#if not defined(__ANDROID__) && defined(__linux__)
-#define IS_LINUX 1
-#else
-#define IS_LINUX 0
-#endif
-
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) ||     \
-    defined(__DragonFly__)
-#define IS_BSD 1
-#else
-#define IS_BSD 0
-#endif
-
-#if defined(__APPLE__) && defined(__MACH__)
-#define IS_MAC 1
-#else
-#define IS_MAC 0
-#endif
-
-#define IS_NIX (IS_LINUX || IS_BSD)
 
 #define CHECK_ENV(key)                                                         \
     ([&]() -> bool {                                                           \
@@ -171,22 +147,22 @@ DEFINE_STANDARD_HANDLE(ViewerPrinter, Message_Printer)
         return result != nullptr && std::strcmp(result, val) == 0;             \
     }())
 
-#define USE_X11                                                                \
+#define RUN_X11                                                                \
     ([]() -> bool {                                                            \
-        if (!IS_MAC && !IS_NIX)                                                \
+        if ((!USE_MACX11 && !IS_NIX) || USE_GLES)                              \
             return 0;                                                          \
                                                                                \
         return CHECK_ENV_VAL("GDK_BACKEND", "x11") ||                          \
                CHECK_ENV_VAL("XDG_SESSION_TYPE", "x11");                       \
     }())
 
-#define USE_WAYLAND                                                            \
+#define RUN_WAYLAND                                                            \
     ([]() -> bool {                                                            \
-        if (!IS_NIX || USE_X11)                                                \
+        if (!IS_NIX || RUN_X11)                                                \
             return 0;                                                          \
                                                                                \
         return CHECK_ENV_VAL("GDK_BACKEND", "wayland") ||                      \
                CHECK_ENV_VAL("XDG_SESSION_TYPE", "wayland");                   \
     }())
 
-#define USE_GLES ([]() -> bool { return CHECK_ENV("USE_GLES"); }())
+// #define USE_GLES ([]() -> bool { return CHECK_ENV("USE_GLES"); }())

@@ -1,11 +1,20 @@
 #!/usr/bin/bash
 
-OCCT_VERSION=OCCT-801
-BUILD_DIR=$(pwd)/.build
-CLONE_DIR=$(pwd)/.clone
-PREFIX=$(pwd)/.local
-ADD_PATHS="$PREFIX:$PREFIX/bin:$PREFIX/lib"
-[[ $PATH != *"$ADD_PATHS"* ]] && export PATH="$ADD_PATHS:$PATH"
+OCCT_VERSION=${OCCT_VERSION:-"OCCT-801"}
+BUILD_DIR=${BUILD_DIR:-"$(pwd)/.build"}
+CLONE_DIR=${CLONE_DIR:-"$(pwd)/.clone"}
+PREFIX=${PREFIX:-"$(pwd)/.local"}
+BUILD_TYPE=${BUILD_TYPE:-"Debug"}
+
+[[ "$OSTYPE" == linux* ]] && IS_LINUX=true || IS_LINUX=false
+[[ "$OSTYPE" == darwin* ]] && IS_MAC=true || IS_MAC=false
+[[ "$OSTYPE" == cygwin* || "$OSTYPE" == win32* ]] && IS_WINDOWS=true || IS_WINDOWS=false
+
+DEV_PATHS=("$PREFIX" "$PREFIX/bin" "$PREFIX/lib")
+for path in ${DEV_PATHS[@]}; do
+    [[ $PATH == *"$path"* ]] && continue
+    export PATH="$path:$PATH"
+done
 
 print_help() {
     clear
@@ -16,45 +25,57 @@ print_help() {
     echo "q                                        - quit"
     echo "h                                        - print this"
     echo "c                                        - clear the console"
+    echo "CC                                       - clear ccache"
+    echo "nuke                                     - ensure a fresh build environment"
+    echo
+    echo "<install|clean|uninstall|delete> <package> (use one) (required) ----------------"
+    echo "[install] <package> is a complete clone, build and install cycle as needed."
+    echo "All clones, builds and installs are local to the project directory:"
+    echo $(pwd)
     echo "--------------------------------------------------------------------------------"
-    echo "<install | clean | uninstall | delete> <package>"
-    echo "Packages: (use one) (required)"
     echo "<occt>                                   - $OCCT_VERSION"
     echo "<peel>                                   - peel C++ for Gtk4"
     echo "<viewer>                                 - Gtk4 OCCT8 viewer widget"
     echo "<example>                                - Viewer widget example app"
+    echo
+    echo "[install] <options> (use one) --------------------------------------------------"
     echo "--------------------------------------------------------------------------------"
-    echo "Options specific to <install>:"
-    echo "install dependencies                     - OS build dependencies (as root)"
-    echo "install list                             - list required OS build dependencies"
+    echo "dependencies                             - OS build dependencies (as root)"
+    echo "list                                     - list required OS build dependencies"
     echo
-    echo "<install> <package> is a complete clone, build and install cycle as needed."
-    echo "All clones, builds and installs are local to the project directory:"
-    echo $(pwd)
-    echo
-    echo "Here OCCT is built for development. (Do not use for production)"
-    echo "By default, only <module> Visualization is built"
-    echo "install occt <flags>"
-    echo "Flags: (optional)"
+    echo "[install] [occt] <flags> (optional) --------------------------------------------"
+    echo "OCCT is built for development. (Do not use for production)"
+    echo "--------------------------------------------------------------------------------"
     echo "<x11>                                    - build for X11 (Nix) (default)"
     echo "<wayland>                                - build for Wayland (Nix)"
     echo "<gles>                                   - build for GlEs on supported platforms"
     echo "<module>                                 - additional OCCT modules to build"
     echo
-    echo "Additional OCCT modules:"
+    echo "[install] [occt] <flags|modules> (optional) ------------------------------------"
+    echo "By default Visualization and ModelingAlogorithms is built"
+    echo "--------------------------------------------------------------------------------"
+    echo "<Visualization>"
     echo "<ModelingAlgorithms>"
+    echo "<ModelingData>"
     echo "<FoundationClasses>"
     echo "<ApplicationFramework>"
     echo "<DataExchange>"
     echo "<Draw>"
-    echo "<ModelingData>"
+    echo
+    echo "[install] [viewer] <flags> (optional) --------------------------------------------"
     echo "--------------------------------------------------------------------------------"
-    echo "Runtime flags require the corresponding OCCT build flags"
-    echo "run <flags>                              - Run the example app"
-    echo "Flags: (optional)"
+    echo "<gles>                                   - build for GlEs on supported platforms"
+    echo
+    echo "[run] <flags> (optional) -------------------------------------------------------"
+    echo "Runs the example application"
+    echo "Flags may require a corresponding OCCT build"
+    echo "--------------------------------------------------------------------------------"
     echo "<debug>                                  - Run through the GNU Debugger"
     echo "<x11>                                    - Run as X11 (Wayland)"
-    echo "<gles>                                   - Use GlEs (X11)"
+    echo "<softgles>                               - Use software GLES render (Windows)"
+    echo "<softgl>                                 - Use software GL render (Windows)"
+    echo
+    echo "================================================================================"
     echo "================================================================================"
 }
 
@@ -67,7 +88,10 @@ run() {
     local -a gtk_env
     local -a x11
     local use_gles
+    local softgl
+    local softgles
 
+    # Resolve the given args to a list of environment variables
     for flag; do
         case $flag in
         debug)
@@ -75,20 +99,27 @@ run() {
             gtk_env+=(GDK_SYNCHRONIZE=1 G_MESSAGES_DEBUG=all)
             ;;
         x11) x11+=(GDK_BACKEND=x11 GDK_DISABLE=egl) ;;
-        gles) use_gles=USE_GLES=1 ;;
+        softgl) $IS_WINDOWS && softgl=GALLIUM_DRIVER=llvmpipe ;;
+        softgles) $IS_WINDOWS && softgles=GALLIUM_DRIVER=llvmpipe ;;
         esac
     done
+    ((${#x11[@]} > 0)) && gtk_env+=("${x11[@]}")
+    [[ -v softgl ]] && gtk_env+=($softgl)
+    [[ -v softgles ]] && gtk_env+=($softgles)
 
-    [[ -v 'x11[0]' && -v use_gles ]] && x11=(GDK_BACKEND=x11)
-    [[ -v use_gles ]] && gtk_env+=($use_gles)
-    [[ -v 'x11[0]' ]] && gtk_env+=("${x11[@]:-}")
-
-    source env.sh # The OCCT env script - required
-    if ((${#gtk_env[@]} > 0)); then
-        env "${gtk_env[@]}" "${command[@]}"
-    else
-        "${command[@]}"
-    fi
+    # Run the executeable in a new process scope to preserve the parent shell env
+    (
+        ((${#gtk_env[@]} > 0)) && export "${gtk_env[@]}"
+        if $IS_WINDOWS; then
+            # Windows on VM is rarely hardware accelerated, so wgl will not be not useable.
+            # We switch to llvmpipe software rendering if flagged.
+            win_use_mesa ${softgl:-""} ${softgles:-""}
+            "$COMSPEC" //c "call env.bat && ${command[@]}"
+        else
+            source env.sh
+            "${command[@]}"
+        fi
+    )
 }
 
 install() {
@@ -96,29 +127,30 @@ install() {
     local os
     local clone
     local build
-    local configure
-    local prepare
+    local -a configure
     local install
     local change_dir
     local stat
+    local use_gles
 
     for flag; do
         case $flag in
         cd) change_dir=".$pack" ;;
         clone) clone=($CLONE_DIR/$pack $OCCT_VERSION) ;;
-        configure) configure=($BUILD_DIR/$pack $PREFIX) ;;
-        prepare) prepare=($CLONE_DIR/$pack $BUILD_DIR/$pack $PREFIX ${args[@]:2}) ;;
+        configure) configure+=($BUILD_DIR/$pack $PREFIX) ;;
+        gles) use_gles=-DUSE_GLES=ON ;;
+        prepare) configure+=($CLONE_DIR/$pack $BUILD_DIR/$pack $PREFIX ${args[@]:2}) ;;
         build) build=($BUILD_DIR/$pack) ;;
         build_meson) build=($BUILD_DIR/$pack $CLONE_DIR/$pack $PREFIX) ;;
         install) install=$BUILD_DIR/$pack ;;
         esac
     done
+    configure+=(${use_gles:-})
     (
         set -e
         [[ -n ${change_dir-} ]] && cd $change_dir
         [[ -n ${clone-} ]] && ${pack}_clone "${clone[@]}"
         [[ -n ${configure-} ]] && ${pack}_configure "${configure[@]}"
-        [[ -n ${prepare-} ]] && ${pack}_prepare "${prepare[@]}"
         [[ -n ${build-} ]] && ${pack}_build "${build[@]}"
         [[ -n ${install-} ]] && ${pack}_install $install
     )
@@ -163,8 +195,16 @@ confirm() {
     [[ "$answer" =~ ^[Yy]([Ee][Ss])?$ ]]
 }
 
+nuke() {
+    rm -rf $PREFIX
+    rm -rf $CLONE_DIR
+    rm -rf $BUILD_DIR
+    ccache -C
+    $IS_WINDOWS && win_download_mesa
+}
+
 print_help
-source .scripts/install.sh || return 1
+source .scripts/install.sh
 source .scripts/build.sh
 prompt
 
@@ -176,16 +216,18 @@ while read -r -a args; do
     q) clear && return 0 ;;
     h) print_help ;;
     c) clear ;;
+    CC) ccache -C ;;
+    nuke) nuke ;;
+    sys) echo ${MSYSTEM:-${DISTRO:-${OSTYPE}}} ;;
     run) run "${args[@]}" ;;
     install)
         case "${args[1]}" in
         dependencies) install_os_dependencies ;;
         list) list_dependencies noop ;;
-        viewer) install viewer configure build install ;;
+        viewer) install viewer configure build install "${args[2]:-}" ;;
         example) install example cd configure build install ;;
         peel) install peel clone build_meson install ;;
         occt) install occt clone prepare build install "${args[2]:-}" ;;
-        # occt) install occt clone prepare build "${args[2]:-}" ;;
         *) print_help "Invalid install input" ;;
         esac
         ;;

@@ -1,0 +1,37 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(PkgConfig)
+find_dependency(OpenCASCADE)
+pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
+
+include_directories(${OpenCASCADE_INCLUDE_DIR})
+
+set_and_check(@PROJECT_NAME@_INCDIR @PACKAGE_PKG_INCDIR@)
+set_and_check(@PROJECT_NAME@_LIBDIR @PACKAGE_PKG_LIBDIR@)
+set_and_check(@PROJECT_NAME@_BINDIR @PACKAGE_PKG_BINDIR@)
+set(LIB_LOC ${@PROJECT_NAME@_LIBDIR})
+set(BIN_LOC ${@PROJECT_NAME@_BINDIR})
+
+if(WIN32)
+  set(LIB_SHARED ${BIN_LOC}/lib@PROJECT_NAME@${CMAKE_SHARED_LIBRARY_SUFFIX})
+  set(LIB_IMP ${LIB_LOC}/lib@PROJECT_NAME@${CMAKE_SHARED_LIBRARY_SUFFIX}.a)
+  set(TARGET_PROPS @PROJECT_NAME@ PROPERTIES IMPORTED_IMPLIB ${LIB_IMP})
+  # set(LINK_OPTS_JOINED "")
+else()
+  set(LIB_SHARED ${LIB_LOC}/lib@PROJECT_NAME@${CMAKE_SHARED_LIBRARY_SUFFIX})
+  # set(LIB_IMP "")
+  set(LINK_OPTS "-Wl" "--disable-new-dtags" "-rpath"
+                ${@PROJECT_NAME@_LIBDIR}:${OpenCASCADE_LIBRARY_DIR})
+  string(REPLACE ";" "," LINK_OPTS_JOINED "${LINK_OPTS}")
+  set(TARGET_PROPS INTERFACE_LINK_OPTIONS "${LINK_OPTS_JOINED}")
+endif()
+
+add_library(@PROJECT_NAME@ SHARED IMPORTED)
+set_target_properties(
+  @PROJECT_NAME@
+  PROPERTIES IMPORTED_LOCATION ${LIB_SHARED}
+             INTERFACE_INCLUDE_DIRECTORIES ${@PROJECT_NAME@_INCDIR}
+             ${TARGET_PROPS})
+
+check_required_components(Gtk4Occt8Viewer)
