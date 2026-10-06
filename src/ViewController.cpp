@@ -3,7 +3,7 @@
 using namespace Gtk4::Occt8;
 
 void ViewController::handleViewRedraw(const IACtx &ctx, const View &view) {
-    AIS_ViewController::handleViewRedraw(ctx, view);
+    ::AIS_ViewController::handleViewRedraw(ctx, view);
     bool should_animate = myToAskNextFrame != (animation_cb != 0);
     if (!should_animate)
         return;
