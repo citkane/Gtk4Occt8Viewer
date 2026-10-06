@@ -9,6 +9,9 @@ Requirements:
 - [Peel](https://gitlab.gnome.org/bugaevc/peel) (Gtk C++ wrapper)
 - Mesa 25.2+ (For Wayland compatibility)
 
+> [!NOTE]
+> This project is in early development. Expect issues!
+
 ## Building the widget
 Ensure that you have Gtk and OCCT installed and on your PATH.
 
