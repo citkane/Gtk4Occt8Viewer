@@ -33,7 +33,9 @@ cd ~/YourWork
 git clone https://github.com/citkane/Gtk4Occt8Viewer
 cd Gtk4Occt8Viewer
 
-cmake -S . -B .build -G Ninja
+cmake -S . -B .build -G Ninja \
+    -DUSE_GLES=OFF # turn ON to build for OpenGLES2
+
 cmake --build .build
 cmake --install .build
 ```
@@ -88,7 +90,12 @@ int main(int argc, char **argv) {
 }
 ```
 
-See the example application in the .example folder for more guidance.
+See the .example and .scripts folders for more guidance.
+
+Some useful runtime environment variables:
+- GDK_BACKEND=x11 GDK_DISABLE=egl (force X11 on Wayland)
+- GDK_SYNCHRONIZE=1 G_MESSAGES_DEBUG=all (enable debugging through external tools)
+- GALLIUM_DRIVER=llvmpipe (mesa-dist-win software rendering - needs setting up)
 
 ## Quickstart development
 For an automated development install of: 
