@@ -18,8 +18,8 @@
 
 namespace Gtk4 {
 namespace Occt8 {
-
 using namespace peel;
+
 using Vec2i = NCollection_Vec2<int>;
 using Vec2d = NCollection_Vec2<double>;
 using VKeyFlags = Aspect_VKeyFlags;
@@ -45,11 +45,11 @@ class Viewer final : public Gtk::GLArea {
     void set_default_scene();
 
     struct OCC {
-        occ::handle<Aspect_NeutralWindow> win;
-        occ::handle<V3d_Viewer> viewer;
-        occ::handle<V3d_View> view;
-        occ::handle<AIS_InteractiveContext> ctx;
-        // @TODO - how to get a occ::handle on ViewController?
+        Handle(Aspect_NeutralWindow) win;
+        Handle(V3d_Viewer) viewer;
+        Handle(V3d_View) view;
+        Handle(AIS_InteractiveContext) ctx;
+        // @TODO - how to get a Handle on ViewController?
         ViewController *ctrl;
     } occ;
 
@@ -66,10 +66,10 @@ class Viewer final : public Gtk::GLArea {
     void divert_occ_printer();
 
     struct {
-        occ::handle<Aspect_DisplayConnection> disp;
-        occ::handle<OpenGl_FrameBuffer> fbo;
-        occ::handle<OpenGl_Context> ctx;
-        occ::handle<OpenGl_GraphicDriver> driver;
+        Handle(Aspect_DisplayConnection) disp;
+        Handle(OpenGl_FrameBuffer) fbo;
+        Handle(OpenGl_Context) ctx;
+        Handle(OpenGl_GraphicDriver) driver;
     } gl;
 
     Aspect_Drawable win_native;
@@ -131,12 +131,6 @@ DEFINE_STANDARD_HANDLE(ViewerPrinter, Message_Printer)
 // ====================================================
 // Macros to switch between Wayland / x11 contexts
 // ====================================================
-
-#define CHECK_ENV(key)                                                         \
-    ([&]() -> bool {                                                           \
-        const char *result = std::getenv(key);                                 \
-        return result != nullptr;                                              \
-    }())
 
 #define CHECK_ENV_VAL(key, val)                                                \
     ([&]() -> bool {                                                           \

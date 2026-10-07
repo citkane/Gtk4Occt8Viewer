@@ -4,7 +4,7 @@ A drop in Gtk widget for the OpenCascade Technologies [OCCT](https://github.com/
 <img width="600"  alt="GTK OCCT Viewer Widget" src="https://github.com/user-attachments/assets/6edfad45-5d77-4489-bf21-e449007e4bc1" />
 
 Requirements:
-- OCCT v8+
+- OCCT v7+
 - Gtk v4.12+
 - [Peel](https://gitlab.gnome.org/bugaevc/peel) (Gtk C++ wrapper)
 - Mesa 25.2+ (For Wayland compatibility)
@@ -99,8 +99,13 @@ For an automated development install of:
 you can use the included installer script from the repository root
 (for debian, arch and Windows MSYS2 UCRT):
 ```bash
-source installer.sh
+source installer.sh # default version OCCT-793
 ```
+or
+```bash
+OCCT_VERSION=OCCT-801 source installer.sh # specify your preferred OCCT branch name
+```
+
 
 This will put you into an interactive installer prompt:
 ```

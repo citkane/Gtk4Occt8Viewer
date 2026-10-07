@@ -1,33 +1,36 @@
 #!/usr/bin/bash
 
 example_configure() (
-    local build_dir=$1
-    local prefix=$2
+    local pack=$1
+    local build_dir=$BUILD_DIR/$pack
     local options=(
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE
     )
 
     rm -f ./compile_commands.json
-    example_uninstall $build_dir
-    cmake --install-prefix $prefix -G Ninja \
+    example_uninstall $pack
+    cmake --install-prefix $PREFIX -G Ninja \
         -S . -B $build_dir \
         "${options[@]}"
 
     cp $build_dir/compile_commands.json ./compile_commands.json
 )
 example_build() (
-    local build_dir=$1
+    local pack=$1
+    local build_dir=$BUILD_DIR/$pack
     cmake --build $build_dir --config Release --parallel 6
 )
 
 example_install() {
-    local build_dir=$1
+    local pack=$1
+    local build_dir=$BUILD_DIR/$pack
     cmake --install $build_dir
 }
 
 example_uninstall() {
-    local build_dir=$1
+    local pack=$1
+    local build_dir=$BUILD_DIR/$pack
     local manifest="$build_dir/install_manifest.txt"
     [[ ! -e "$manifest" ]] && return 0
 
@@ -35,14 +38,16 @@ example_uninstall() {
 }
 
 example_clean() {
-    local build_dir=$1
+    local pack=$1
+    local build_dir=$BUILD_DIR/$pack
     rm -f ./compile_commands.json
     rm -rf $build_dir/peel-generated
     cmake --build $build_dir --target clean
 }
 
 example_delete() {
-    local build_dir=$1
-    example_uninstall $build_dir
+    local pack=$1
+    local build_dir=$BUILD_DIR/$pack
+    example_uninstall $pack
     rm -rf $build_dir
 }
