@@ -1,17 +1,18 @@
 #!/usr/bin/bash
 
 viewer_configure() (
-    local build_dir=$1
-    local prefix=$2
-    local use_gles=$3
+    local pack=$1
+    local build_dir=$BUILD_DIR/$pack
+    local gles=$2
+    [[ $gles == "gles" ]] && gles="-DUSE_GLES=ON" || gles="-DUSE_GLES=OFF"
     local options=(
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE
-        ${use_gles:-"-DUSE_GLES=OFF"}
+        $use_gles
     )
     rm -f ./compile_commands.json
-    viewer_uninstall $build_dir
-    cmake --install-prefix $prefix -G Ninja \
+    viewer_uninstall $pack
+    cmake --install-prefix $PREFIX -G Ninja \
         -S . -B $build_dir \
         "${options[@]}"
 
@@ -19,25 +20,29 @@ viewer_configure() (
 )
 
 viewer_build() (
-    local build_dir=$1
+    local pack=$1
+    local build_dir=$BUILD_DIR/$pack
     echo "Building Gtk4Occt8Viewer to $build_dir"
     cmake --build $build_dir --parallel
 )
 
 viewer_clean() {
-    local build_dir=$1
+    local pack=$1
+    local build_dir=$BUILD_DIR/$pack
     rm -f ./compile_commands.json
     rm -rf $build_dir/peel-generated
     cmake --build $build_dir --target clean
 }
 
 viewer_install() {
-    local build_dir=$1
+    local pack=$1
+    local build_dir=$BUILD_DIR/$pack
     cmake --install $build_dir
 }
 
 viewer_uninstall() {
-    local build_dir=$1
+    local pack=$1
+    local build_dir=$BUILD_DIR/$pack
     local manifest=$build_dir/install_manifest.txt
     [[ ! -e $manifest ]] && return 0
 
@@ -45,7 +50,8 @@ viewer_uninstall() {
 }
 
 viewer_delete() {
-    local build_dir=$1
-    viewer_uninstall $build_dir
+    local pack=$1
+    local build_dir=$BUILD_DIR/$pack
+    viewer_uninstall $pack
     rm -rf $build_dir
 }

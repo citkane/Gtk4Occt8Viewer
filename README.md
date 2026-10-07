@@ -4,7 +4,7 @@ A drop in Gtk widget for the OpenCascade Technologies [OCCT](https://github.com/
 <img width="600"  alt="GTK OCCT Viewer Widget" src="https://github.com/user-attachments/assets/6edfad45-5d77-4489-bf21-e449007e4bc1" />
 
 Requirements:
-- OCCT v8+
+- OCCT v7+
 - Gtk v4.12+
 - [Peel](https://gitlab.gnome.org/bugaevc/peel) (Gtk C++ wrapper)
 - Mesa 25.2+ (For Wayland compatibility)
@@ -42,6 +42,10 @@ cmake --install .build
 ## Consuming the widget
 The built library is a gobject widget, so it can be consumed as C or C++.
 
+Ensure that the Widget is installed, on your PATH and then use CMake (or equivalent)
+`find_package(Gtk4Occt8Viewer REQUIRED)` and link the `Gtk4Occt8Viewer` library to your 
+project target.
+
 A minimal Peel C++ application example:
 ```cpp
 #include <peel/Gio/ApplicationFlags.h>
@@ -60,8 +64,9 @@ static void build_ui(Gio::Application *application) {
     auto app = application->cast<Gtk::Application>();
     auto window = Gtk::ApplicationWindow::create(app);
     auto viewer = Occt8::Viewer::create();
-	// viewer->occ points to the OCCT API's:
-	// {
+
+    // viewer->occ points to the OCCT API's:
+    // {
     //     occ::handle<Aspect_NeutralWindow> win;
     //     occ::handle<V3d_Viewer> viewer;
     //     occ::handle<V3d_View> view;
@@ -69,7 +74,7 @@ static void build_ui(Gio::Application *application) {
     //     ViewController *ctrl;
     // }
 
-	viewer->set_default_scene();
+    viewer->set_default_scene();
     window->set_child(std::move(viewer));
     window->set_default_size(800, 600);
     window->present();
@@ -95,8 +100,13 @@ For an automated development install of:
 you can use the included installer script from the repository root
 (for debian, arch and Windows MSYS2 UCRT):
 ```bash
-source installer.sh
+source installer.sh # default version OCCT-793
 ```
+or
+```bash
+OCCT_VERSION=OCCT-801 source installer.sh # specify your preferred OCCT branch name
+```
+
 
 This will put you into an interactive installer prompt:
 ```

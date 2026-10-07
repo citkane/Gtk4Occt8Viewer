@@ -6,15 +6,20 @@
 
 namespace Gtk4 {
 namespace Occt8 {
-using IACtx = occ::handle<AIS_InteractiveContext>;
-using View = occ::handle<V3d_View>;
+
+using IACtx = Handle(AIS_InteractiveContext);
+using View = Handle(V3d_View);
 
 // GObject classes are not ideal for multiple inheritence,
 // so we create a seperate AIS_ViewController class and give it the Viewer
 // GObject widget as it's owner.
 class Viewer;
 class ViewController final : public AIS_ViewController {
-
+    // @TODO error| 'DynamicType' marked 'override' but does not override any
+    // member functions
+    //
+    // DEFINE_STANDARD_RTTIEXT(ViewController,
+    // AIS_ViewController)
   public:
     explicit ViewController(Viewer &owner) : gobj_viewer(owner) {};
     virtual void handleViewRedraw(const IACtx &ctx, const View &view) override;
@@ -23,6 +28,8 @@ class ViewController final : public AIS_ViewController {
     Viewer &gobj_viewer;
     guint animation_cb = 0;
 };
+// @TODO How to get a Handle on ViewController?
+// DEFINE_STANDARD_HANDLE(ViewController, AIS_ViewController)
 
 } // namespace Occt8
 } // namespace Gtk4

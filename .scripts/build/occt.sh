@@ -1,10 +1,12 @@
 #!/usr/bin/bash
 
 occt_configure() {
-    local src_dir=$1
-    local build_dir=$2
-    local prefix=$3
-    local -a flags=("${@:4}")
+    local pack=$1
+    local src_dir=$CLONE_DIR/$OCCT_VERSION
+    local build_dir=$BUILD_DIR/$OCCT_VERSION
+    local prefix=$PREFIX/$OCCT_VERSION
+    local -a flags=("${@:2}")
+    echo "flags: ${flags[@]}"
     local -a modules=()
     local options=(
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
@@ -22,7 +24,7 @@ occt_configure() {
 
     export CFLAGS="-w"
     export CXXFLAGS="-w"
-    occt_uninstall $build_dir
+    occt_uninstall
     cmake --install-prefix $prefix -G Ninja \
         -S $src_dir -B $build_dir \
         "${options[@]}" \
@@ -32,31 +34,29 @@ occt_configure() {
 }
 
 occt_build() {
-    local build_dir=$1
+    local build_dir=$BUILD_DIR/$OCCT_VERSION
     echo "Building OCCT to $build_dir"
     cmake --build $build_dir --parallel
 }
 
 occt_clone() {
-    local src_dir=$1
-    local version=$2
+    local src_dir=$CLONE_DIR/$OCCT_VERSION
     local url=https://github.com/Open-Cascade-SAS/OCCT.git
     [[ -e "$src_dir/CMakeLists.txt" ]] && return 0
 
     echo "Cloning OCCT to $src_dir"
     rm -rf "$src_dir"
-    git clone -b $version --single-branch $url $src_dir
+    git clone -b $OCCT_VERSION --single-branch $url $src_dir
 }
 
 occt_install() {
-    local build_dir=$1
-    local status
-    echo "Installing OCCT to $PREFIX"
+    local build_dir=$BUILD_DIR/$OCCT_VERSION
+    echo "Installing OCCT to $PREFIX/$OCCT_VERSION"
     print_same_line cmake --install $build_dir
 }
 
 occt_uninstall() {
-    local build_dir=$1
+    local build_dir=$BUILD_DIR/$OCCT_VERSION
     local manifest=$build_dir/install_manifest.txt
     [[ ! -e $manifest ]] && return 0
 
@@ -64,13 +64,13 @@ occt_uninstall() {
 }
 
 occt_clean() {
-    local build_dir=$1
+    local build_dir=$BUILD_DIR/$OCCT_VERSION
     cmake --build $build_dir --target clean
 }
 
 occt_delete() {
-    local build_dir=$1
-    occt_uninstall $build_dir
+    local build_dir=$BUILD_DIR/$OCCT_VERSION
+    occt_uninstall
     rm -rf $build_dir
 }
 

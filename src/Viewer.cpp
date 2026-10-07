@@ -7,8 +7,6 @@
 #include <Graphic3d_DiagnosticInfo.hxx>
 #include <Quantity_NameOfColor.hxx>
 
-using occ::handle;
-
 IMPLEMENT_STANDARD_RTTIEXT(Gtk4::Occt8::ViewerPrinter, Message_Printer)
 PEEL_CLASS_IMPL(Gtk4::Occt8::Viewer, "Gtk4Occt8Viewer", peel::Gtk::GLArea)
 using namespace Gtk4::Occt8;
@@ -66,7 +64,7 @@ void Viewer::init(Class *) {
         occ.view->MustBeResized();
         occ.view->Invalidate();
         //@TODO familiarise and examine sub-view behaviours
-        for (const occ::handle<V3d_View> &sub_view : occ.view->Subviews()) {
+        for (const Handle(V3d_View) &sub_view : occ.view->Subviews()) {
             sub_view->MustBeResized();
             sub_view->Invalidate();
         }
@@ -120,7 +118,6 @@ void Viewer::init_ctx() {
     if (RUN_X11 || IS_WIN)
         init_native_win();
 #endif
-
     gl.ctx = new OpenGl_Context();
     if (!gl.ctx->Init(!ctx_compat))
         g_error("Failed to initialise OCCT gl context");
@@ -149,7 +146,7 @@ void Viewer::init_window(int gtk_x, int gtk_y, float gtk_r) {
         occ.view->MustBeResized();
         occ.view->Invalidate();
         // @TODO We are at init - can there be subviews yet?
-        for (const occ::handle<V3d_View> &sub_view : occ.view->Subviews()) {
+        for (const Handle(V3d_View) &sub_view : occ.view->Subviews()) {
             sub_view->MustBeResized();
             sub_view->Invalidate();
         }
@@ -165,7 +162,11 @@ void Viewer::init_window(int gtk_x, int gtk_y, float gtk_r) {
         mssg += std::to_string(MIN_MESA_V);
 #endif
         g_critical("%s\n", mssg.c_str());
+#if OCCT_V < 8
+        g_error("%s", err.GetMessageString());
+#else
         g_error("%s", err.what());
+#endif
     }
 }
 
@@ -192,7 +193,7 @@ void Viewer::set_pixel_ratio(int gtk_x, float gtk_r) {
         occ.win->SetSize(fbo_sz.x(), fbo_sz.y());
         occ.view->MustBeResized();
         occ.view->Invalidate();
-        for (const occ::handle<V3d_View> &sub_view : occ.view->Subviews()) {
+        for (const Handle(V3d_View) &sub_view : occ.view->Subviews()) {
             sub_view->MustBeResized();
             sub_view->Invalidate();
             // @TODO Examine subview behaviours
@@ -312,8 +313,8 @@ void Viewer::set_default_scene() {
     occ.viewer->SetLightOn();
     occ.viewer->ActivateGrid(Aspect_GT_Rectangular, Aspect_GDM_Lines);
 
-    using ViewCube = occ::handle<AIS_ViewCube>;
-    using AnimationCamera = occ::handle<AIS_AnimationCamera>;
+    using ViewCube = Handle(AIS_ViewCube);
+    using AnimationCamera = Handle(AIS_AnimationCamera);
     ViewCube cube = new AIS_ViewCube();
     AnimationCamera camera = new AIS_AnimationCamera("default", occ.view);
     cube->SetViewAnimation(camera);
@@ -348,8 +349,8 @@ void Viewer::print_gl_info(bool verbose) {
 }
 
 void Viewer::divert_occ_printer() {
-    occ::handle<ViewerPrinter> printer = new ViewerPrinter;
-    occ::handle<Message_Messenger> messenger = Message::DefaultMessenger();
+    Handle(ViewerPrinter) printer = new ViewerPrinter;
+    Handle(Message_Messenger) messenger = Message::DefaultMessenger();
     messenger->ChangePrinters().Clear();
     messenger->AddPrinter(printer);
 }

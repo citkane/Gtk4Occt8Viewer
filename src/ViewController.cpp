@@ -2,6 +2,8 @@
 
 using namespace Gtk4::Occt8;
 
+// @TODO - how to get a Handle on ViewController?
+// IMPLEMENT_STANDARD_RTTIEXT(ViewController, AIS_ViewController)
 void ViewController::handleViewRedraw(const IACtx &ctx, const View &view) {
     ::AIS_ViewController::handleViewRedraw(ctx, view);
     bool should_animate = myToAskNextFrame != (animation_cb != 0);

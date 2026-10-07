@@ -14,6 +14,7 @@ include(libraries)
 include(pkgconfig)
 
 # add_compile_options("-Wall" "-Wextra" "-fPIC")
+add_compile_definitions(OCCT_V=${OpenCASCADE_MAJOR_VERSION})
 add_compile_options("-Wall" "-Wextra")
 add_library(${PROJECT_NAME} SHARED ${PROJ_SRCS})
 

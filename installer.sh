@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-OCCT_VERSION=${OCCT_VERSION:-"OCCT-801"}
+OCCT_VERSION=${OCCT_VERSION:-"OCCT-793"}
 BUILD_DIR=${BUILD_DIR:-"$(pwd)/.build"}
 CLONE_DIR=${CLONE_DIR:-"$(pwd)/.clone"}
 PREFIX=${PREFIX:-"$(pwd)/.local"}
@@ -9,12 +9,6 @@ BUILD_TYPE=${BUILD_TYPE:-"Debug"}
 [[ "$OSTYPE" == linux* ]] && IS_LINUX=true || IS_LINUX=false
 [[ "$OSTYPE" == darwin* ]] && IS_MAC=true || IS_MAC=false
 [[ "$OSTYPE" == cygwin* || "$OSTYPE" == win32* ]] && IS_WINDOWS=true || IS_WINDOWS=false
-
-DEV_PATHS=("$PREFIX" "$PREFIX/bin" "$PREFIX/lib")
-for path in ${DEV_PATHS[@]}; do
-    [[ $PATH == *"$path"* ]] && continue
-    export PATH="$path:$PATH"
-done
 
 print_help() {
     clear
@@ -83,6 +77,15 @@ prompt() {
     printf '%s' "installer > "
 }
 
+set_path() {
+    DEV_PATHS=("$PREFIX" "$PREFIX/bin" "$PREFIX/lib"
+        "$PREFIX/$OCCT_VERSION" "$PREFIX/$OCCT_VERSION/bin" "$PREFIX/$OCCT_VERSION/lib")
+    for path in ${DEV_PATHS[@]}; do
+        [[ $PATH == *"$path"* ]] && continue
+        export PATH="$path:$PATH"
+    done
+}
+
 run() {
     local command=(example_viewer)
     local -a gtk_env
@@ -106,9 +109,8 @@ run() {
     ((${#x11[@]} > 0)) && gtk_env+=("${x11[@]}")
     [[ -v softgl ]] && gtk_env+=($softgl)
     [[ -v softgles ]] && gtk_env+=($softgles)
-
-    # Run the executeable in a new process scope to preserve the parent shell env
     (
+        set_path
         ((${#gtk_env[@]} > 0)) && export "${gtk_env[@]}"
         if $IS_WINDOWS; then
             # Windows on VM is rarely hardware accelerated, so wgl will not be not useable.
@@ -124,35 +126,30 @@ run() {
 
 install() {
     local pack=$1
-    local os
-    local clone
-    local build
+    local -a clone
     local -a configure
-    local install
+    local -a build
+    local -a install
     local change_dir
     local stat
-    local use_gles
 
     for flag; do
         case $flag in
         cd) change_dir=".$pack" ;;
-        clone) clone=($CLONE_DIR/$pack $OCCT_VERSION) ;;
-        configure) configure+=($BUILD_DIR/$pack $PREFIX) ;;
-        gles) use_gles=-DUSE_GLES=ON ;;
-        prepare) configure+=($CLONE_DIR/$pack $BUILD_DIR/$pack $PREFIX ${args[@]:2}) ;;
-        build) build=($BUILD_DIR/$pack) ;;
-        build_meson) build=($BUILD_DIR/$pack $CLONE_DIR/$pack $PREFIX) ;;
-        install) install=$BUILD_DIR/$pack ;;
+        clone) clone=($pack) ;;
+        configure) configure+=($pack ${args[@]:2}) ;;
+        build) build=($pack) ;;
+        install) install=($pack) ;;
         esac
     done
-    configure+=(${use_gles:-})
     (
         set -e
+        set_path
         [[ -n ${change_dir-} ]] && cd $change_dir
         [[ -n ${clone-} ]] && ${pack}_clone "${clone[@]}"
         [[ -n ${configure-} ]] && ${pack}_configure "${configure[@]}"
         [[ -n ${build-} ]] && ${pack}_build "${build[@]}"
-        [[ -n ${install-} ]] && ${pack}_install $install
+        [[ -n ${install-} ]] && ${pack}_install "${install[@]}"
     )
     stat=$?
     ((stat == 0)) && echo -e "\n$pack install successful" || echo -e "\n$pack install failed"
@@ -162,7 +159,7 @@ clean() {
     local pack=$1
     local stat
     (
-        ${pack}_clean $BUILD_DIR/$pack
+        ${pack}_clean $pack
     )
     stat=$?
     ((stat == 0)) && echo -e "\n$pack clean successful" || echo -e "\n$pack clean failed"
@@ -172,7 +169,7 @@ delete() {
     local pack=$1
     local stat
     (
-        ${pack}_delete $BUILD_DIR/$pack
+        ${pack}_delete $pack
     )
     stat=$?
     ((stat == 0)) && echo -e "\n$pack delete successful" || echo -e "\n$pack delete failed"
@@ -182,7 +179,7 @@ uninstall() {
     local pack=$1
     local stat
     (
-        ${pack}_uninstall $BUILD_DIR/$pack
+        ${pack}_uninstall $pack
     )
     stat=$?
     ((stat == 0)) && echo -e "\n$pack uninstall successful" || echo -e "\n$pack uninstall failed"
@@ -226,8 +223,8 @@ while read -r -a args; do
         list) list_dependencies noop ;;
         viewer) install viewer configure build install "${args[2]:-}" ;;
         example) install example cd configure build install ;;
-        peel) install peel clone build_meson install ;;
-        occt) install occt clone prepare build install "${args[2]:-}" ;;
+        peel) install peel clone build install ;;
+        occt) install occt clone configure build install "${args[2]:-}" ;;
         *) print_help "Invalid install input" ;;
         esac
         ;;
@@ -258,7 +255,7 @@ while read -r -a args; do
         *) print_help "Invalid uninstall input" ;;
         esac
         ;;
-    *) print_help "Invalid input" ;;
+    *) print_help "Invalid input: ${args[@]}" ;;
     esac
     prompt
 done
