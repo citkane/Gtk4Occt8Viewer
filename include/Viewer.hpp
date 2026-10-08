@@ -132,28 +132,34 @@ DEFINE_STANDARD_HANDLE(ViewerPrinter, Message_Printer)
 // Macros to switch between Wayland / x11 contexts
 // ====================================================
 
+#ifndef CHECK_ENV_VAL
 #define CHECK_ENV_VAL(key, val)                                                \
     ([&]() -> bool {                                                           \
         const char *result = std::getenv(key);                                 \
         return result != nullptr && std::strcmp(result, val) == 0;             \
     }())
+#endif
 
-#define RUN_X11                                                                \
+#ifndef RUN_UNIX_X11
+#define RUN_UNIX_X11                                                           \
     ([]() -> bool {                                                            \
-        if ((!USE_MACX11 && !IS_NIX) || USE_GLES)                              \
+        if (!WAYLAND_COMPAT)                                                   \
             return 0;                                                          \
                                                                                \
         return CHECK_ENV_VAL("GDK_BACKEND", "x11") ||                          \
                CHECK_ENV_VAL("XDG_SESSION_TYPE", "x11");                       \
     }())
+#endif
 
+#ifndef RUN_WAYLAND
 #define RUN_WAYLAND                                                            \
     ([]() -> bool {                                                            \
-        if (!IS_NIX || RUN_X11)                                                \
+        if (!WAYLAND_COMPAT || RUN_UNIX_X11)                                   \
             return 0;                                                          \
                                                                                \
         return CHECK_ENV_VAL("GDK_BACKEND", "wayland") ||                      \
                CHECK_ENV_VAL("XDG_SESSION_TYPE", "wayland");                   \
     }())
+#endif
 
 #endif // #ifndef GTK4_OCCT8_VIEWER_H

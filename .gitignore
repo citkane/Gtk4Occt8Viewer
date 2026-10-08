@@ -14,6 +14,7 @@
 !/.gdbinit
 !/README.md
 !/LICENSE
+!/*.patch
 
 .cache/
 compile_commands.json

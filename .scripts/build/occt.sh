@@ -83,7 +83,7 @@ parse_options() {
 
     for flag in ${flags[@]:-}; do
         case $flag in
-        # If USE_OPENGL=ON and USE_GLES=ON co-exist, GTK4 fails
+        # If USE_OPENGL=ON and USE_GLES2=ON co-exist, GTK4 fails
         # OCCT CMake does not automatically override these
         # @TODO create bug report
         gles) gles=-DUSE_GLES2=ON && gl=-DUSE_OPENGL=OFF ;;

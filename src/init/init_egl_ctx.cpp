@@ -1,4 +1,5 @@
-#if IS_NIX || USE_GLES || (IS_MACOS && !USE_MACX11) || (!IS_WIN && !IS_MACOS)
+#if WAYLAND_COMPAT || USE_GLES2 || (IS_MACOS && !USE_MACX11) ||                \
+    (!IS_WIN && !IS_MACOS)
 
 #include "Viewer.hpp"
 #include <EGL/egl.h>

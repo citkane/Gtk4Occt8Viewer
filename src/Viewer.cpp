@@ -17,10 +17,10 @@ void Viewer::init(Class *) {
     prev_pix_r = 0;
     occ_pix_r = 1;
     g_print("%s\n", RUN_WAYLAND ? "Use Wayland" : "No use Wayland");
-    g_print("%s\n", USE_GLES ? "Use GLES" : "No use GLES");
-    g_print("%s\n", RUN_X11 ? "Use X11" : "No use X11");
-    set_allowed_apis(USE_GLES ? Gdk::GLAPI::GLES
-                              : Gdk::GLAPI::GL); // requires GTK4 v4.12+
+    g_print("%s\n", USE_GLES2 ? "Use GLES" : "No use GLES");
+    g_print("%s\n", RUN_UNIX_X11 ? "Use X11" : "No use X11");
+    set_allowed_apis(USE_GLES2 ? Gdk::GLAPI::GLES
+                               : Gdk::GLAPI::GL); // requires GTK4 v4.12+
     set_can_focus(true);
     set_focusable(true);
     set_focus_on_click(true);
@@ -114,8 +114,8 @@ void Viewer::init_ctx() {
     bool ctx_compat = gl.driver->Options().contextCompatible;
     g_print("Got %s context.\n", ctx);
 
-#if IS_NIX || USE_MACX11 || (IS_WIN && !USE_GLES)
-    if (RUN_X11 || IS_WIN)
+#if WAYLAND_COMPAT || USE_MACX11 || (IS_WIN && !USE_GLES2)
+    if (RUN_UNIX_X11 || IS_WIN)
         init_native_win();
 #endif
     gl.ctx = new OpenGl_Context();
@@ -124,8 +124,8 @@ void Viewer::init_ctx() {
 
     g_print("Initialised OCCT gl context\n");
 
-#if (!IS_WIN || USE_GLES) && !USE_MACX11
-    if (RUN_WAYLAND || USE_GLES)
+#if (!IS_WIN || USE_GLES2) && !USE_MACX11
+    if (RUN_WAYLAND || USE_GLES2)
         init_egl_ctx();
 #endif
 }
@@ -157,7 +157,7 @@ void Viewer::init_window(int gtk_x, int gtk_y, float gtk_r) {
 #if IS_WIN
         mssg += "\nYou could try llvmpipe software rendering as a fallback: "
                 "https://github.com/pal1000/mesa-dist-win";
-#elif IS_NIX
+#elif WAYLAND_COMPAT
         mssg += "\nOCCT needs a minimum mesa version of ";
         mssg += std::to_string(MIN_MESA_V);
 #endif
