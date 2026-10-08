@@ -101,7 +101,7 @@ run() {
             command=(gdb example_viewer)
             gtk_env+=(GDK_SYNCHRONIZE=1 G_MESSAGES_DEBUG=all)
             ;;
-        x11) x11+=(GDK_BACKEND=x11 GDK_DISABLE=egl) ;;
+        x11) x11+=(GDK_BACKEND=x11) ;;
         softgl) $IS_WINDOWS && softgl=GALLIUM_DRIVER=llvmpipe ;;
         softgles) $IS_WINDOWS && softgles=GALLIUM_DRIVER=llvmpipe ;;
         esac
@@ -112,6 +112,8 @@ run() {
     (
         set_path
         ((${#gtk_env[@]} > 0)) && export "${gtk_env[@]}"
+        [[ ! -v GDK_BACKEND && -v XDG_SESSION_TYPE ]] && export GDK_BACKEND=$XDG_SESSION_TYPE
+        [[ $GDK_BACKEND == "x11" ]] && export GDK_DISABLE=egl
         if $IS_WINDOWS; then
             # Windows on VM is rarely hardware accelerated, so wgl will not be not useable.
             # We switch to llvmpipe software rendering if flagged.
