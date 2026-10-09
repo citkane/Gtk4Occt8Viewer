@@ -152,9 +152,10 @@ At the time of writing, switching between Wayland and X11 for OCCT is a compile-
 Modern user expectations are however that applications will switch compositor contexts seamlessly,
 which implies allowing both compositor paths from a single binary.
 
-This widget has implemented compositor switching as a run-time option, but it awaits suitable upstream development
+This widget has implemented compositor switching as a run-time option, but it requires 
+[suitable upstream development](https://github.com/Open-Cascade-SAS/OCCT/discussions/1609)
 in OCCT to be practically usable in this way. Until then you will need to: 
 - compile both Wayland and X11 OCCT libraries and distribute two versions of your app with desired links, or
-- compile OCCT for X11 and use a XWayland fallback (while GTK still supports it).
-- Apply a patch in this repository root against the corresponding branch for full run-time switching (experimental)
+- compile OCCT for X11 and use a XWayland fallback (while GTK still supports it), or
+- apply an (experimental) patch from this repository root against the corresponding OCCT branch for full run-time switching.
 
