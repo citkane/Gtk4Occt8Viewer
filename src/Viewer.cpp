@@ -17,10 +17,10 @@ void Viewer::init(Class *) {
     prev_pix_r = 0;
     occ_pix_r = 1;
     g_print("%s\n", RUN_WAYLAND ? "Use Wayland" : "No use Wayland");
-    g_print("%s\n", USE_GLES ? "Use GLES" : "No use GLES");
-    g_print("%s\n", RUN_X11 ? "Use X11" : "No use X11");
-    set_allowed_apis(USE_GLES ? Gdk::GLAPI::GLES
-                              : Gdk::GLAPI::GL); // requires GTK4 v4.12+
+    g_print("%s\n", USE_GLES2 ? "Use GLES" : "No use GLES");
+    g_print("%s\n", RUN_UNIX_X11 ? "Use X11" : "No use X11");
+    set_allowed_apis(USE_GLES2 ? Gdk::GLAPI::GLES
+                               : Gdk::GLAPI::GL); // requires GTK4 v4.12+
     set_can_focus(true);
     set_focusable(true);
     set_focus_on_click(true);
@@ -64,7 +64,7 @@ void Viewer::init(Class *) {
         occ.view->MustBeResized();
         occ.view->Invalidate();
         //@TODO familiarise and examine sub-view behaviours
-        for (const Handle(V3d_View) &sub_view : occ.view->Subviews()) {
+        for (const occ::handle<V3d_View> &sub_view : occ.view->Subviews()) {
             sub_view->MustBeResized();
             sub_view->Invalidate();
         }
@@ -114,8 +114,8 @@ void Viewer::init_ctx() {
     bool ctx_compat = gl.driver->Options().contextCompatible;
     g_print("Got %s context.\n", ctx);
 
-#if IS_NIX || USE_MACX11 || (IS_WIN && !USE_GLES)
-    if (RUN_X11 || IS_WIN)
+#if WAYLAND_COMPAT || USE_MACX11 || (IS_WIN && !USE_GLES2)
+    if (RUN_UNIX_X11 || IS_WIN)
         init_native_win();
 #endif
     gl.ctx = new OpenGl_Context();
@@ -124,8 +124,8 @@ void Viewer::init_ctx() {
 
     g_print("Initialised OCCT gl context\n");
 
-#if (!IS_WIN || USE_GLES) && !USE_MACX11
-    if (RUN_WAYLAND || USE_GLES)
+#if (!IS_WIN || USE_GLES2) && !USE_MACX11
+    if (RUN_WAYLAND || USE_GLES2)
         init_egl_ctx();
 #endif
 }
@@ -146,7 +146,7 @@ void Viewer::init_window(int gtk_x, int gtk_y, float gtk_r) {
         occ.view->MustBeResized();
         occ.view->Invalidate();
         // @TODO We are at init - can there be subviews yet?
-        for (const Handle(V3d_View) &sub_view : occ.view->Subviews()) {
+        for (const occ::handle<V3d_View> &sub_view : occ.view->Subviews()) {
             sub_view->MustBeResized();
             sub_view->Invalidate();
         }
@@ -157,7 +157,7 @@ void Viewer::init_window(int gtk_x, int gtk_y, float gtk_r) {
 #if IS_WIN
         mssg += "\nYou could try llvmpipe software rendering as a fallback: "
                 "https://github.com/pal1000/mesa-dist-win";
-#elif IS_NIX
+#elif WAYLAND_COMPAT
         mssg += "\nOCCT needs a minimum mesa version of ";
         mssg += std::to_string(MIN_MESA_V);
 #endif
@@ -193,7 +193,7 @@ void Viewer::set_pixel_ratio(int gtk_x, float gtk_r) {
         occ.win->SetSize(fbo_sz.x(), fbo_sz.y());
         occ.view->MustBeResized();
         occ.view->Invalidate();
-        for (const Handle(V3d_View) &sub_view : occ.view->Subviews()) {
+        for (const occ::handle<V3d_View> &sub_view : occ.view->Subviews()) {
             sub_view->MustBeResized();
             sub_view->Invalidate();
             // @TODO Examine subview behaviours
@@ -313,8 +313,8 @@ void Viewer::set_default_scene() {
     occ.viewer->SetLightOn();
     occ.viewer->ActivateGrid(Aspect_GT_Rectangular, Aspect_GDM_Lines);
 
-    using ViewCube = Handle(AIS_ViewCube);
-    using AnimationCamera = Handle(AIS_AnimationCamera);
+    using ViewCube = occ::handle<AIS_ViewCube>;
+    using AnimationCamera = occ::handle<AIS_AnimationCamera>;
     ViewCube cube = new AIS_ViewCube();
     AnimationCamera camera = new AIS_AnimationCamera("default", occ.view);
     cube->SetViewAnimation(camera);
@@ -349,8 +349,8 @@ void Viewer::print_gl_info(bool verbose) {
 }
 
 void Viewer::divert_occ_printer() {
-    Handle(ViewerPrinter) printer = new ViewerPrinter;
-    Handle(Message_Messenger) messenger = Message::DefaultMessenger();
+    occ::handle<ViewerPrinter> printer = new ViewerPrinter;
+    occ::handle<Message_Messenger> messenger = Message::DefaultMessenger();
     messenger->ChangePrinters().Clear();
     messenger->AddPrinter(printer);
 }

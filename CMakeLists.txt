@@ -23,11 +23,10 @@ target_include_directories(${PROJECT_NAME} PUBLIC ${PROJ_INCDIR}
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJ_PRIVATE_LIBS})
 target_link_libraries(${PROJECT_NAME}
                       PUBLIC ${OpenCASCADE_Visualization_LIBRARIES})
-if(IS_NIX)
-  target_compile_definitions(${PROJECT_NAME} PRIVATE IS_NIX)
-endif()
+# if(WAYLAND_COMPAT) target_compile_definitions(${PROJECT_NAME} PRIVATE
+# WAYLAND_COMPAT) endif()
 
-if(IS_WIN AND USE_GLES)
+if(IS_WIN AND USE_GLES2)
   target_compile_options(${PROJECT_NAME}
                          PRIVATE "SHELL:-idirafter ${EGL_INCDIR}")
 endif()

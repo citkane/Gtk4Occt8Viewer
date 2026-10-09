@@ -1,4 +1,4 @@
-#if (IS_NIX && !USE_GLES) || USE_MACX11
+#if WAYLAND_COMPAT || USE_MACX11
 
 #include "Viewer.hpp"
 #include <GL/glx.h>
@@ -30,7 +30,7 @@ void Viewer::init_native_win() {
         make_current();
 }
 
-#elif IS_WIN && !USE_GLES
+#elif IS_WIN && !USE_GLES2
 
 #if IS_WIN
 #define WIN32_LEAN_AND_MEAN

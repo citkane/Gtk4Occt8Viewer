@@ -13,6 +13,12 @@
 #include <Aspect_Window.hxx>
 #include <NCollection_Vec2.hxx>
 
+#if OCCT_V < 8
+namespace occ {
+using opencascade::handle;
+}
+#endif
+
 namespace Gtk4 {
 namespace Occt8 {
 using namespace peel;
@@ -46,7 +52,7 @@ static inline Aspect_VKeyFlags to_v_key_mod(Gdk::ModifierType type) {
     return aFlags;
 }
 
-static inline NCollection_Vec2<int> to_int_point(Handle(Aspect_Window) win,
+static inline NCollection_Vec2<int> to_int_point(occ::handle<Aspect_Window> win,
                                                  double x, double y) {
     auto p = win->ConvertPointToBacking(NCollection_Vec2(x, y));
     return NCollection_Vec2<int>(ceil(p.x()), ceil(p.y()));

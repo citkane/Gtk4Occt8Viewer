@@ -33,7 +33,9 @@ cd ~/YourWork
 git clone https://github.com/citkane/Gtk4Occt8Viewer
 cd Gtk4Occt8Viewer
 
-cmake -S . -B .build -G Ninja
+cmake -S . -B .build -G Ninja \
+    -DUSE_GLES=OFF # turn ON to build for OpenGLES2
+
 cmake --build .build
 cmake --install .build
 ```
@@ -67,10 +69,10 @@ static void build_ui(Gio::Application *application) {
 
     // viewer->occ points to the OCCT API's:
     // {
-    //     Handle(Aspect_NeutralWindow) win;
-    //     Handle(V3d_Viewer) viewer;
-    //     Handle(V3d_View) view;
-    //     Handle(AIS_InteractiveContext) ctx;
+    //     occ::handle<Aspect_NeutralWindow> win;
+    //     occ::handle<V3d_Viewer> viewer;
+    //     occ::handle<V3d_View> view;
+    //     occ::handle<AIS_InteractiveContext> ctx;
     //     ViewController *ctrl;
     // }
 
@@ -88,7 +90,12 @@ int main(int argc, char **argv) {
 }
 ```
 
-See the example application in the .example folder for more guidance.
+See the .example and .scripts folders for more guidance.
+
+Some useful runtime environment variables:
+- GDK_BACKEND=x11 GDK_DISABLE=egl (force X11 on Wayland)
+- GDK_SYNCHRONIZE=1 G_MESSAGES_DEBUG=all (enable debugging through external tools)
+- GALLIUM_DRIVER=llvmpipe (mesa-dist-win software rendering - needs setting up)
 
 ## Quickstart development
 For an automated development install of: 
@@ -145,8 +152,10 @@ At the time of writing, switching between Wayland and X11 for OCCT is a compile-
 Modern user expectations are however that applications will switch compositor contexts seamlessly,
 which implies allowing both compositor paths from a single binary.
 
-This widget has implemented compositor switching as a run-time option, but it awaits suitable upstream development
+This widget has implemented compositor switching as a run-time option, but it requires 
+[suitable upstream development](https://github.com/Open-Cascade-SAS/OCCT/discussions/1609)
 in OCCT to be practically usable in this way. Until then you will need to: 
 - compile both Wayland and X11 OCCT libraries and distribute two versions of your app with desired links, or
-- compile OCCT for X11 and use a XWayland fallback (while GTK still supports it).
+- compile OCCT for X11 and use a XWayland fallback (while GTK still supports it), or
+- apply an (experimental) patch from this repository root against the corresponding OCCT branch for full run-time switching.
 

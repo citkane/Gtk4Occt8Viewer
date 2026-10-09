@@ -4,11 +4,11 @@ viewer_configure() (
     local pack=$1
     local build_dir=$BUILD_DIR/$pack
     local gles=$2
-    [[ $gles == "gles" ]] && gles="-DUSE_GLES=ON" || gles="-DUSE_GLES=OFF"
+    [[ $gles == "gles" ]] && gles="-DUSE_GLES2=ON" || gles="-DUSE_GLES2=OFF"
     local options=(
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE
-        $use_gles
+        $gles
     )
     rm -f ./compile_commands.json
     viewer_uninstall $pack

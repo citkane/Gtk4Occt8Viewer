@@ -4,11 +4,17 @@
 #include <AIS_ViewController.hxx>
 #include <glib.h>
 
+#if OCCT_V < 8
+namespace occ {
+using opencascade::handle;
+}
+#endif
+
 namespace Gtk4 {
 namespace Occt8 {
 
-using IACtx = Handle(AIS_InteractiveContext);
-using View = Handle(V3d_View);
+using IACtx = occ::handle<AIS_InteractiveContext>;
+using View = occ::handle<V3d_View>;
 
 // GObject classes are not ideal for multiple inheritence,
 // so we create a seperate AIS_ViewController class and give it the Viewer
