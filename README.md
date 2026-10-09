@@ -156,5 +156,5 @@ This widget has implemented compositor switching as a run-time option, but it aw
 in OCCT to be practically usable in this way. Until then you will need to: 
 - compile both Wayland and X11 OCCT libraries and distribute two versions of your app with desired links, or
 - compile OCCT for X11 and use a XWayland fallback (while GTK still supports it).
-- Apply the patch in this repository root against OCCT-793 for full run-time switching
+- Apply a patch in this repository root against the corresponding branch for full run-time switching (experimental)
 

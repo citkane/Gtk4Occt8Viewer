@@ -1,13 +1,13 @@
 diff --git c/CMakeLists.txt w/CMakeLists.txt
-index f8d62e06b7..d420b0ec91 100644
+index 9b21fedd66..dea1eee2d8 100644
 --- c/CMakeLists.txt
 +++ w/CMakeLists.txt
-@@ -1401,4 +1401,7 @@ endforeach()
+@@ -1488,4 +1488,7 @@ endforeach()
  # to have correct paths to libraries depending on the configuration
  OCCT_UPDATE_TARGET_FILE ()
  
 +# Check for system Wayland compatibility and compile run-time flag
-+OCCT_INCLUDE_CMAKE_FILE("adm/cmake/wayland_compat")
++occt_include_cmake_file("adm/cmake/wayland_compat")
 +
  message (STATUS "Info: \(${CURRENT_TIME}\) OCCT configuration files prepared")
 diff --git c/adm/cmake/wayland_compat.cmake w/adm/cmake/wayland_compat.cmake
@@ -31,151 +31,120 @@ index 0000000000..99e51710e5
 +    target_compile_definitions(${target} PRIVATE WAYLAND_COMPAT=0)
 +  endforeach()
 +endif()
-diff --git c/src/Aspect/Aspect_DisplayConnection.cxx w/src/Aspect/Aspect_DisplayConnection.cxx
-index ce6ee9ac4f..c58ec1d3d4 100755
---- c/src/Aspect/Aspect_DisplayConnection.cxx
-+++ w/src/Aspect/Aspect_DisplayConnection.cxx
-@@ -15,8 +15,9 @@
- 
- #include <Aspect_DisplayConnectionDefinitionError.hxx>
- #include <OSD_Environment.hxx>
-+#include <Standard_Macro_Runtime.hxx>
- 
--#if defined(HAVE_XLIB)
-+#if defined(HAVE_XLIB) || WAYLAND_COMPAT
-   #include <X11/Xlib.h>
-   #include <X11/Xutil.h>
- #endif
-@@ -27,14 +28,17 @@ IMPLEMENT_STANDARD_RTTIEXT(Aspect_DisplayConnection, Standard_Transient)
- 
- Aspect_DisplayConnection::Aspect_DisplayConnection()
- {
--#if defined(HAVE_XLIB)
--  myDisplay       = NULL;
--  myDefVisualInfo = NULL;
--  myDefFBConfig   = NULL;
--  myIsOwnDisplay  = false;
--  OSD_Environment anEnv("DISPLAY");
--  myDisplayName = anEnv.Value();
--  Init(NULL);
-+#if defined(HAVE_XLIB) || WAYLAND_COMPAT
-+  if (!RUN_WAYLAND)
-+  {
-+    myDisplay       = NULL;
-+    myDefVisualInfo = NULL;
-+    myDefFBConfig   = NULL;
-+    myIsOwnDisplay  = false;
-+    OSD_Environment anEnv("DISPLAY");
-+    myDisplayName = anEnv.Value();
-+    Init(NULL);
-+  }
- #endif
- }
- 
-@@ -42,14 +46,17 @@ Aspect_DisplayConnection::Aspect_DisplayConnection()
- 
- Aspect_DisplayConnection::~Aspect_DisplayConnection()
- {
--#if defined(HAVE_XLIB)
--  if (myDefVisualInfo != NULL)
-+#if defined(HAVE_XLIB) || WAYLAND_COMPAT
-+  if (!RUN_WAYLAND)
-   {
--    XFree(myDefVisualInfo);
--  }
--  if (myDisplay != NULL && myIsOwnDisplay)
--  {
--    XCloseDisplay((Display*)myDisplay);
-+    if (myDefVisualInfo != NULL)
-+    {
-+      XFree(myDefVisualInfo);
-+    }
-+    if (myDisplay != NULL && myIsOwnDisplay)
-+    {
-+      XCloseDisplay((Display*)myDisplay);
-+    }
-   }
- #endif
- }
-@@ -84,8 +91,9 @@ void Aspect_DisplayConnection::SetDefaultVisualInfo(Aspect_XVisualInfo* theVisua
- {
-   if (myDefVisualInfo != NULL)
-   {
--#if defined(HAVE_XLIB)
--    XFree(myDefVisualInfo);
-+#if defined(HAVE_XLIB) || WAYLAND_COMPAT
-+    if (!RUN_WAYLAND)
-+      XFree(myDefVisualInfo);
- #endif
-   }
-   myDefVisualInfo = theVisual;
-@@ -96,31 +104,38 @@ void Aspect_DisplayConnection::SetDefaultVisualInfo(Aspect_XVisualInfo* theVisua
- 
- void Aspect_DisplayConnection::Init(Aspect_XDisplay* theDisplay)
- {
--#if defined(HAVE_XLIB)
--  if (myDisplay != NULL && myIsOwnDisplay)
-+#if defined(HAVE_XLIB) || WAYLAND_COMPAT
-+  if (!RUN_WAYLAND)
-   {
--    XCloseDisplay((Display*)myDisplay);
--  }
--  myIsOwnDisplay = false;
--  myAtoms.Clear();
-+    if (myDisplay != NULL && myIsOwnDisplay)
-+    {
-+      XCloseDisplay((Display*)myDisplay);
-+    }
-+    myIsOwnDisplay = false;
-+    myAtoms.Clear();
- 
--  myDisplay =
--    theDisplay != NULL ? theDisplay : (Aspect_XDisplay*)XOpenDisplay(myDisplayName.ToCString());
--  if (myDisplay == NULL)
--  {
--    TCollection_AsciiString aMessage;
--    aMessage += "Can not connect to the server \"";
--    aMessage += myDisplayName + "\"";
--    throw Aspect_DisplayConnectionDefinitionError(aMessage.ToCString());
-+    myDisplay =
-+      theDisplay != NULL ? theDisplay : (Aspect_XDisplay*)XOpenDisplay(myDisplayName.ToCString());
-+    if (myDisplay == NULL)
-+    {
-+      TCollection_AsciiString aMessage;
-+      aMessage += "Can not connect to the server \"";
-+      aMessage += myDisplayName + "\"";
-+      throw Aspect_DisplayConnectionDefinitionError(aMessage.ToCString());
-+    }
-+    else
-+    {
-+      myIsOwnDisplay = theDisplay == NULL;
-+      myAtoms.Bind(Aspect_XA_DELETE_WINDOW,
-+                   (uint64_t)XInternAtom((Display*)myDisplay, "WM_DELETE_WINDOW", False));
-+    }
-   }
--  else
+diff --git c/src/FoundationClasses/TKernel/Standard/FILES.cmake w/src/FoundationClasses/TKernel/Standard/FILES.cmake
+index d434afe9cd..0a21178032 100644
+--- c/src/FoundationClasses/TKernel/Standard/FILES.cmake
++++ w/src/FoundationClasses/TKernel/Standard/FILES.cmake
+@@ -45,6 +45,7 @@ set(OCCT_Standard_FILES
+   Standard_LicenseError.hxx
+   Standard_LicenseNotFound.hxx
+   Standard_Macro.hxx
++  Standard_Macro_Runtime.hxx
+   Standard_MemoryUtils.hxx
+   Standard_MMgrOpt.cxx
+   Standard_MMgrOpt.hxx
+diff --git c/src/FoundationClasses/TKernel/Standard/Standard_Macro_Runtime.hxx w/src/FoundationClasses/TKernel/Standard/Standard_Macro_Runtime.hxx
+new file mode 100644
+index 0000000000..830e939f6a
+--- /dev/null
++++ w/src/FoundationClasses/TKernel/Standard/Standard_Macro_Runtime.hxx
+@@ -0,0 +1,75 @@
++
++// Copyright (c) 1998-1999 Matra Datavision
++// Copyright (c) 1999-2014 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file
++//! This file provides macros to determine system runtime compatibility
++//! capabilities. It's primary purpose is to compile both X11 and Wayland
++//! paths for Unix-like systems thus allowing the consumer to select the
++//! appropriate runtime path.
++
++#ifndef _Standard_Macro_Runtime_HeaderFile
++#define _Standard_Macro_Runtime_HeaderFile
++
++//! @def CHECK_ENV_VAL
++//! Compares the value of an environment variable
++//! @returns bool
++#define CHECK_ENV_VAL(key, val)                                                                    \
++  ([&]() -> bool {                                                                                 \
++    const char* result = std::getenv(key);                                                         \
++    return result != nullptr && std::strcmp(result, val) == 0;                                     \
++  }())
++
++//! @def RUN_UNIX_X11
++//! Determine a X11 runtime path on Wayland compatible systems
++//! @returns bool
++#define RUN_UNIX_X11                                                                               \
++  ([]() -> bool {                                                                                  \
++    if (!WAYLAND_COMPAT)                                                                           \
++      return 0;                                                                                    \
++                                                                                                   \
++    return CHECK_ENV_VAL("XDG_SESSION_TYPE", "x11") || CHECK_ENV_VAL("GDK_BACKEND", "x11")         \
++           || CHECK_ENV_VAL("QT_QPA_PLATFORM", "xcb");                                             \
++  }())
++
++//! @def RUN_WAYLAND
++//! Determine a Wayland runtime path on Wayland compatible systems
++//! @returns bool
++#define RUN_WAYLAND                                                                                \
++  ([]() -> bool {                                                                                  \
++    if (!WAYLAND_COMPAT || RUN_UNIX_X11)                                                           \
++      return 0;                                                                                    \
++                                                                                                   \
++    return CHECK_ENV_VAL("XDG_SESSION_TYPE", "wayland") || CHECK_ENV_VAL("GDK_BACKEND", "wayland") \
++           || CHECK_ENV_VAL("QT_QPA_PLATFORM", "wayland");                                         \
++  }())
++
++// Compiler definitions to negate elif macro patterns downstream.
++// This allows for compiling both X11 and Wayland paths.
++#if WAYLAND_COMPAT
++  #define COMPILE_EGL
++  #define COMPILE_XLIB
++#elif defined(HAVE_EGL)
++  #define COMPILE_EGL
++#elif defined(_WIN32)
++  #define COMPILE_WIN32
++#elif defined(HAVE_XLIB)
++  #define COMPILE_XLIB
++#elif defined(__APPLE__)
++  #define COMPILE_APPLE
++#else
++  #define COMPILE_NOOP
 +#endif
-+#if !defined(HAVE_XLIB) || WAYLAND_COMPAT
-+  if (!RUN_UNIX_X11)
-   {
-+    myDisplay      = theDisplay;
-     myIsOwnDisplay = theDisplay == NULL;
--    myAtoms.Bind(Aspect_XA_DELETE_WINDOW,
--                 (uint64_t)XInternAtom((Display*)myDisplay, "WM_DELETE_WINDOW", False));
-   }
--#else
--  myDisplay      = theDisplay;
--  myIsOwnDisplay = theDisplay == NULL;
- #endif
- }
-diff --git c/src/OpenGl/OpenGl_Context.cxx w/src/OpenGl/OpenGl_Context.cxx
-index 61c306076c..657c475e4c 100644
---- c/src/OpenGl/OpenGl_Context.cxx
-+++ w/src/OpenGl/OpenGl_Context.cxx
-@@ -53,7 +53,11 @@
++
++#endif // _Standard_Macro_Runtime_HeaderFile
+diff --git c/src/FoundationClasses/TKernel/TKernel_pch.hxx w/src/FoundationClasses/TKernel/TKernel_pch.hxx
+index bb06936019..8e4a396ab0 100644
+--- c/src/FoundationClasses/TKernel/TKernel_pch.hxx
++++ w/src/FoundationClasses/TKernel/TKernel_pch.hxx
+@@ -42,6 +42,7 @@
+ #include <Standard_GUID.hxx>
+ #include <Standard_Handle.hxx>
+ #include <Standard_Macro.hxx>
++#include <Standard_Macro_Runtime.hxx>
+ #include <iomanip>
+ #include <fstream>
+ #include <Standard_Transient.hxx>
+diff --git c/src/Visualization/TKOpenGl/OpenGl/OpenGl_Context.cxx w/src/Visualization/TKOpenGl/OpenGl/OpenGl_Context.cxx
+index 4692b75b1e..95b3fdc0cf 100644
+--- c/src/Visualization/TKOpenGl/OpenGl/OpenGl_Context.cxx
++++ w/src/Visualization/TKOpenGl/OpenGl/OpenGl_Context.cxx
+@@ -52,8 +52,11 @@
+ #include <limits>
  
  IMPLEMENT_STANDARD_RTTIEXT(OpenGl_Context, Standard_Transient)
- 
+-
 -#if defined(HAVE_EGL)
 +#include <Standard_Macro_Runtime.hxx>
 +#if WAYLAND_COMPAT
@@ -185,7 +154,7 @@ index 61c306076c..657c475e4c 100644
    #include <EGL/egl.h>
    #ifdef _MSC_VER
      #pragma comment(lib, "libEGL.lib")
-@@ -267,10 +271,13 @@ OpenGl_Context::OpenGl_Context(const Handle(OpenGl_Caps)& theCaps)
+@@ -269,10 +272,13 @@ OpenGl_Context::OpenGl_Context(const occ::handle<OpenGl_Caps>& theCaps)
    myPolygonOffset.Units  = 0.0f;
  
    // system-dependent fields
@@ -193,76 +162,76 @@ index 61c306076c..657c475e4c 100644
 -  myDisplay  = (Aspect_Display)EGL_NO_DISPLAY;
 -  myWindow   = (Aspect_Drawable)EGL_NO_SURFACE;
 -  myGContext = (Aspect_RenderingContext)EGL_NO_CONTEXT;
-+#if defined(COMPILE_EGL)
++#ifdef COMPILE_EGL
 +  if (!RUN_UNIX_X11)
 +  {
 +    myDisplay  = (Aspect_Display)EGL_NO_DISPLAY;
 +    myWindow   = (Aspect_Drawable)EGL_NO_SURFACE;
 +    myGContext = (Aspect_RenderingContext)EGL_NO_CONTEXT;
-+  };
++  }
  #elif defined(__APPLE__) && !defined(HAVE_XLIB)
    // Vendors can not extend functionality on this system
    // and developers are limited to OpenGL support provided by Mac OS X SDK.
-@@ -622,31 +629,38 @@ void OpenGl_Context::Share(const Handle(OpenGl_Context)& theShareCtx)
+@@ -622,31 +628,40 @@ void OpenGl_Context::Share(const occ::handle<OpenGl_Context>& theShareCtx)
  
- Standard_Boolean OpenGl_Context::IsCurrent() const
+ bool OpenGl_Context::IsCurrent() const
  {
 -  #if defined(HAVE_EGL)
 -  if ((EGLDisplay)myDisplay == EGL_NO_DISPLAY || (EGLContext)myGContext == EGL_NO_CONTEXT)
 +  #ifdef COMPILE_EGL
 +  if (!RUN_UNIX_X11)
    {
--    return Standard_False;
+-    return false;
 -  }
--
++    if ((EGLDisplay)myDisplay == EGL_NO_DISPLAY || (EGLContext)myGContext == EGL_NO_CONTEXT)
++    {
++      return false;
++    }
+ 
 -  return (((EGLDisplay)myDisplay == eglGetCurrentDisplay())
 -          && ((EGLContext)myGContext == eglGetCurrentContext())
 -          && ((EGLSurface)myWindow == eglGetCurrentSurface(EGL_DRAW)));
 -  #elif defined(_WIN32)
-+    if ((EGLDisplay)myDisplay == EGL_NO_DISPLAY || (EGLContext)myGContext == EGL_NO_CONTEXT)
-+    {
-+      return Standard_False;
-+    }
 +    return (((EGLDisplay)myDisplay == eglGetCurrentDisplay())
 +            && ((EGLContext)myGContext == eglGetCurrentContext())
 +            && ((EGLSurface)myWindow == eglGetCurrentSurface(EGL_DRAW)));
-+  };
++  }
 +  #endif
 +  #ifdef COMPILE_WIN32
    if (myDisplay == NULL || myGContext == NULL)
    {
-     return Standard_False;
+     return false;
    }
    return (((HDC)myDisplay == wglGetCurrentDC()) && ((HGLRC)myGContext == wglGetCurrentContext()));
 -  #elif defined(HAVE_XLIB)
--  if (myDisplay == NULL || myWindow == 0 || myGContext == 0)
+-  if (myDisplay == nullptr || myWindow == 0 || myGContext == nullptr)
 +  #endif
 +  #ifdef COMPILE_XLIB
 +  if (!RUN_WAYLAND)
    {
--    return Standard_False;
+-    return false;
 -  }
--
++    if (myDisplay == nullptr || myWindow == 0 || myGContext == nullptr)
++    {
++      return false;
++    }
+ 
 -  return (((Display*)myDisplay == glXGetCurrentDisplay())
 -          && ((GLXContext)myGContext == glXGetCurrentContext())
 -          && ((GLXDrawable)myWindow == glXGetCurrentDrawable()));
 -  #else
-+    if (myDisplay == NULL || myWindow == 0 || myGContext == 0)
-+    {
-+      return Standard_False;
-+    }
 +    return (((Display*)myDisplay == glXGetCurrentDisplay())
 +            && ((GLXContext)myGContext == glXGetCurrentContext())
 +            && ((GLXDrawable)myWindow == glXGetCurrentDrawable()));
-+  };
++  }
 +  #endif
 +  #ifdef COMPILE_NOOP
-   return Standard_False;
+   return false;
    #endif
  }
-@@ -655,30 +669,34 @@ Standard_Boolean OpenGl_Context::IsCurrent() const
+@@ -655,30 +670,34 @@ bool OpenGl_Context::IsCurrent() const
  
- Standard_Boolean OpenGl_Context::MakeCurrent()
+ bool OpenGl_Context::MakeCurrent()
  {
 -  #if defined(HAVE_EGL)
 -  if ((EGLDisplay)myDisplay == EGL_NO_DISPLAY || (EGLContext)myGContext == EGL_NO_CONTEXT)
@@ -271,13 +240,13 @@ index 61c306076c..657c475e4c 100644
    {
 -    Standard_ProgramError_Raise_if(myIsInitialized,
 -                                   "OpenGl_Context::Init() should be called before!");
--    return Standard_False;
+-    return false;
 -  }
 +    if ((EGLDisplay)myDisplay == EGL_NO_DISPLAY || (EGLContext)myGContext == EGL_NO_CONTEXT)
 +    {
 +      Standard_ProgramError_Raise_if(myIsInitialized,
 +                                     "OpenGl_Context::Init() should be called before!");
-+      return Standard_False;
++      return false;
 +    }
  
 -  if (eglMakeCurrent((EGLDisplay)myDisplay,
@@ -292,8 +261,8 @@ index 61c306076c..657c475e4c 100644
 -                0,
 -                GL_DEBUG_SEVERITY_HIGH,
 -                "eglMakeCurrent() has failed!");
--    myIsInitialized = Standard_False;
--    return Standard_False;
+-    myIsInitialized = false;
+-    return false;
 +    if (eglMakeCurrent((EGLDisplay)myDisplay,
 +                       (EGLSurface)myWindow,
 +                       (EGLSurface)myWindow,
@@ -306,8 +275,8 @@ index 61c306076c..657c475e4c 100644
 +                  0,
 +                  GL_DEBUG_SEVERITY_HIGH,
 +                  "eglMakeCurrent() has failed!");
-+      myIsInitialized = Standard_False;
-+      return Standard_False;
++      myIsInitialized = false;
++      return false;
 +    }
    }
 -  #elif defined(_WIN32)
@@ -316,25 +285,25 @@ index 61c306076c..657c475e4c 100644
    if (myDisplay == NULL || myGContext == NULL)
    {
      Standard_ProgramError_Raise_if(myIsInitialized,
-@@ -720,26 +738,31 @@ Standard_Boolean OpenGl_Context::MakeCurrent()
-     myIsInitialized = Standard_False;
-     return Standard_False;
+@@ -720,26 +739,31 @@ bool OpenGl_Context::MakeCurrent()
+     myIsInitialized = false;
+     return false;
    }
 -  #elif defined(HAVE_XLIB)
--  if (myDisplay == NULL || myWindow == 0 || myGContext == 0)
+-  if (myDisplay == nullptr || myWindow == 0 || myGContext == nullptr)
 +  #endif
 +  #ifdef COMPILE_XLIB
 +  if (!RUN_WAYLAND)
    {
 -    Standard_ProgramError_Raise_if(myIsInitialized,
 -                                   "OpenGl_Context::Init() should be called before!");
--    return Standard_False;
+-    return false;
 -  }
-+    if (myDisplay == NULL || myWindow == 0 || myGContext == 0)
++    if (myDisplay == nullptr || myWindow == 0 || myGContext == nullptr)
 +    {
 +      Standard_ProgramError_Raise_if(myIsInitialized,
 +                                     "OpenGl_Context::Init() should be called before!");
-+      return Standard_False;
++      return false;
 +    }
  
 -  if (!glXMakeCurrent((Display*)myDisplay, (GLXDrawable)myWindow, (GLXContext)myGContext))
@@ -345,8 +314,8 @@ index 61c306076c..657c475e4c 100644
 -                0,
 -                GL_DEBUG_SEVERITY_HIGH,
 -                "glXMakeCurrent() has failed!");
--    myIsInitialized = Standard_False;
--    return Standard_False;
+-    myIsInitialized = false;
+-    return false;
 +    if (!glXMakeCurrent((Display*)myDisplay, (GLXDrawable)myWindow, (GLXContext)myGContext))
 +    {
 +      // if there is no current context it might be impossible to use glGetError() correctly
@@ -355,8 +324,8 @@ index 61c306076c..657c475e4c 100644
 +                  0,
 +                  GL_DEBUG_SEVERITY_HIGH,
 +                  "glXMakeCurrent() has failed!");
-+      myIsInitialized = Standard_False;
-+      return Standard_False;
++      myIsInitialized = false;
++      return false;
 +    }
    }
 -  #else
@@ -365,7 +334,7 @@ index 61c306076c..657c475e4c 100644
    // not implemented
    if (!myIsInitialized)
    {
-@@ -754,23 +777,26 @@ Standard_Boolean OpenGl_Context::MakeCurrent()
+@@ -754,12 +778,13 @@ bool OpenGl_Context::MakeCurrent()
  
  void OpenGl_Context::SwapBuffers()
  {
@@ -382,13 +351,7 @@ index 61c306076c..657c475e4c 100644
    if ((HDC)myDisplay != NULL)
    {
      ::SwapBuffers((HDC)myDisplay);
-     core11fwd->glFlush();
-   }
--  #elif defined(HAVE_XLIB)
--  if ((Display*)myDisplay != NULL)
-+  #endif
-+  #ifdef COMPILE_XLIB
-+  if (!RUN_WAYLAND && (Display*)myDisplay != NULL)
+@@ -770,7 +795,8 @@ void OpenGl_Context::SwapBuffers()
    {
      glXSwapBuffers((Display*)myDisplay, (GLXDrawable)myWindow);
    }
@@ -400,14 +363,14 @@ index 61c306076c..657c475e4c 100644
  }
 @@ -781,39 +807,48 @@ void OpenGl_Context::SwapBuffers()
  
- Standard_Boolean OpenGl_Context::SetSwapInterval(const Standard_Integer theInterval)
+ bool OpenGl_Context::SetSwapInterval(const int theInterval)
  {
 -#if defined(HAVE_EGL)
 -  if (::eglSwapInterval((EGLDisplay)myDisplay, theInterval) == EGL_TRUE)
 +#ifdef COMPILE_EGL
 +  if (!RUN_UNIX_X11 && ::eglSwapInterval((EGLDisplay)myDisplay, theInterval) == EGL_TRUE)
    {
-     return Standard_True;
+     return true;
    }
 -#elif defined(_WIN32)
 +#endif
@@ -415,7 +378,7 @@ index 61c306076c..657c475e4c 100644
    if (myFuncs->wglSwapIntervalEXT != NULL)
    {
      myFuncs->wglSwapIntervalEXT(theInterval);
-     return Standard_True;
+     return true;
    }
 -#elif defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 +#endif
@@ -426,10 +389,10 @@ index 61c306076c..657c475e4c 100644
 +  #else
    if (::CGLSetParameter(CGLGetCurrentContext(), kCGLCPSwapInterval, &theInterval) == kCGLNoError)
    {
-     return Standard_True;
+     return true;
    }
 -#elif defined(HAVE_XLIB)
--  if (theInterval == -1 && myFuncs->glXSwapIntervalEXT != NULL)
+-  if (theInterval == -1 && myFuncs->glXSwapIntervalEXT != nullptr)
 +  #endif
 +#endif
 +#ifdef COMPILE_XLIB
@@ -439,33 +402,33 @@ index 61c306076c..657c475e4c 100644
 -      *glXSwapIntervalEXT_t_x)(Display* theDisplay, GLXDrawable theDrawable, int theInterval);
 -    glXSwapIntervalEXT_t_x aFuncPtr = (glXSwapIntervalEXT_t_x)myFuncs->glXSwapIntervalEXT;
 -    aFuncPtr((Display*)myDisplay, (GLXDrawable)myWindow, theInterval);
--    return Standard_True;
-+    if (theInterval == -1 && myFuncs->glXSwapIntervalEXT != NULL)
+-    return true;
++    if (theInterval == -1 && myFuncs->glXSwapIntervalEXT != nullptr)
 +    {
 +      typedef int (
 +        *glXSwapIntervalEXT_t_x)(Display* theDisplay, GLXDrawable theDrawable, int theInterval);
 +      glXSwapIntervalEXT_t_x aFuncPtr = (glXSwapIntervalEXT_t_x)myFuncs->glXSwapIntervalEXT;
 +      aFuncPtr((Display*)myDisplay, (GLXDrawable)myWindow, theInterval);
-+      return Standard_True;
++      return true;
 +    }
-+    else if (myFuncs->glXSwapIntervalSGI != NULL)
++    else if (myFuncs->glXSwapIntervalSGI != nullptr)
 +    {
 +      myFuncs->glXSwapIntervalSGI(theInterval);
-+      return Standard_True;
++      return true;
 +    }
    }
--  else if (myFuncs->glXSwapIntervalSGI != NULL)
+-  else if (myFuncs->glXSwapIntervalSGI != nullptr)
 -  {
 -    myFuncs->glXSwapIntervalSGI(theInterval);
--    return Standard_True;
+-    return true;
 -  }
 -#else
 +#endif
 +#ifdef COMPILE_NOOP
    //
  #endif
-   return Standard_False;
-@@ -823,15 +858,21 @@ Standard_Boolean OpenGl_Context::SetSwapInterval(const Standard_Integer theInter
+   return false;
+@@ -823,15 +858,21 @@ bool OpenGl_Context::SetSwapInterval(const int theInterval)
  
  void* OpenGl_Context::findProc(const char* theFuncName)
  {
@@ -494,8 +457,8 @@ index 61c306076c..657c475e4c 100644
    (void)theFuncName;
    return NULL;
  #endif
-@@ -940,18 +981,27 @@ Standard_Boolean OpenGl_Context::Init(const Standard_Boolean theIsCoreProfile)
-     return Standard_True;
+@@ -940,18 +981,27 @@ bool OpenGl_Context::Init(const bool theIsCoreProfile)
+     return true;
    }
  
 -  #if defined(HAVE_EGL)
@@ -531,20 +494,20 @@ index 61c306076c..657c475e4c 100644
 +  #ifdef COMPILE_NOOP
      //
    #endif
-   if (myGContext == NULL)
-@@ -1816,9 +1866,9 @@ void OpenGl_Context::MemoryInfo(TColStd_IndexedDataMapOfStringString& theDict) c
+   if (myGContext == nullptr)
+@@ -1819,9 +1869,9 @@ void OpenGl_Context::MemoryInfo(
    }
  #endif
  
 -#if defined(HAVE_XLIB) && !defined(__APPLE__) && !defined(_WIN32)
 +#if defined(COMPILE_XLIB) && !defined(__APPLE__) && !defined(_WIN32)
    // GLX_RENDERER_VENDOR_ID_MESA
--  if (myFuncs->glXQueryCurrentRendererIntegerMESA != NULL)
-+  if (!RUN_WAYLAND && myFuncs->glXQueryCurrentRendererIntegerMESA != NULL)
+-  if (myFuncs->glXQueryCurrentRendererIntegerMESA != nullptr)
++  if (!RUN_WAYLAND && myFuncs->glXQueryCurrentRendererIntegerMESA != nullptr)
    {
      unsigned int aVMemMiB = 0;
      if (myFuncs->glXQueryCurrentRendererIntegerMESA(GLX_RENDERER_VIDEO_MEMORY_MESA, &aVMemMiB) != 0)
-@@ -1846,9 +1896,10 @@ void OpenGl_Context::WindowBufferBits(Graphic3d_Vec4i& theColorBits,
+@@ -1849,9 +1899,10 @@ void OpenGl_Context::WindowBufferBits(NCollection_Vec4<int>& theColorBits,
    }
    else
    {
@@ -558,7 +521,7 @@ index 61c306076c..657c475e4c 100644
      const int             aPixFrmtIndex = GetPixelFormat((HDC)myDisplay);
      PIXELFORMATDESCRIPTOR aFormat;
      memset(&aFormat, 0, sizeof(aFormat));
-@@ -1859,25 +1910,29 @@ void OpenGl_Context::WindowBufferBits(Graphic3d_Vec4i& theColorBits,
+@@ -1862,25 +1913,29 @@ void OpenGl_Context::WindowBufferBits(NCollection_Vec4<int>& theColorBits,
                             aFormat.cBlueBits,
                             aFormat.cAlphaBits);
      theDepthStencilBits.SetValues(aFormat.cDepthBits, aFormat.cStencilBits);
@@ -573,7 +536,7 @@ index 61c306076c..657c475e4c 100644
 -    std::unique_ptr<XVisualInfo, int (*)(void*)> aVis(
 -      XGetVisualInfo(aDisplay, VisualIDMask | VisualScreenMask, &aVisInfo, &aNbItems),
 -      &XFree);
--    if (aVis.get() != NULL)
+-    if (aVis.get() != nullptr)
 +#endif
 +#ifdef COMPILE_XLIB
 +    if (!RUN_WAYLAND)
@@ -594,7 +557,7 @@ index 61c306076c..657c475e4c 100644
 +      std::unique_ptr<XVisualInfo, int (*)(void*)> aVis(
 +        XGetVisualInfo(aDisplay, VisualIDMask | VisualScreenMask, &aVisInfo, &aNbItems),
 +        &XFree);
-+      if (aVis.get() != NULL)
++      if (aVis.get() != nullptr)
 +      {
 +        glXGetConfig(aDisplay, aVis.get(), GLX_RED_SIZE, &theColorBits.r());
 +        glXGetConfig(aDisplay, aVis.get(), GLX_GREEN_SIZE, &theColorBits.g());
@@ -606,7 +569,7 @@ index 61c306076c..657c475e4c 100644
      }
  #endif
    }
-@@ -1890,42 +1945,51 @@ void OpenGl_Context::DiagnosticInformation(TColStd_IndexedDataMapOfStringString&
+@@ -1894,42 +1949,51 @@ void OpenGl_Context::DiagnosticInformation(
  {
    if ((theFlags & Graphic3d_DiagnosticInfo_NativePlatform) != 0)
    {
@@ -684,9 +647,9 @@ index 61c306076c..657c475e4c 100644
  #endif
    }
 @@ -2359,11 +2423,11 @@ void OpenGl_Context::SetShadingMaterial(
+     myMaterial.Pbr[1].BaseColor.a() = anAlphaBack;
+   }
  
-   // do not update material properties in case of zero reflection mode,
-   // because GL lighting will be disabled by OpenGl_PrimitiveArray::DrawArray() anyway.
 -  const OpenGl_MaterialState& aMatState     = myShaderManager->MaterialState();
 -  float                       anAlphaCutoff = (anAspect->AlphaMode() == Graphic3d_AlphaMode_Mask
 +  const OpenGl_MaterialState& aMatState = myShaderManager->MaterialState();
@@ -699,21 +662,21 @@ index 61c306076c..657c475e4c 100644
    if (anAspect->ToDrawEdges())
    {
      if (anAspect->InteriorStyle() == Aspect_IS_EMPTY
-diff --git c/src/OpenGl/OpenGl_GlFunctions.cxx w/src/OpenGl/OpenGl_GlFunctions.cxx
-index 2529d5a06e..e71c8904d4 100644
---- c/src/OpenGl/OpenGl_GlFunctions.cxx
-+++ w/src/OpenGl/OpenGl_GlFunctions.cxx
+diff --git c/src/Visualization/TKOpenGl/OpenGl/OpenGl_GlFunctions.cxx w/src/Visualization/TKOpenGl/OpenGl/OpenGl_GlFunctions.cxx
+index 8e3e21a7d8..7196f950ca 100644
+--- c/src/Visualization/TKOpenGl/OpenGl/OpenGl_GlFunctions.cxx
++++ w/src/Visualization/TKOpenGl/OpenGl/OpenGl_GlFunctions.cxx
 @@ -24,7 +24,8 @@
  #include <OpenGl_ArbTexBindless.hxx>
  #include <OpenGl_GlCore46.hxx>
  
 -#if !defined(HAVE_EGL) && defined(HAVE_XLIB)
 +#include <Standard_Macro_Runtime.hxx>
-+#if (!defined(HAVE_EGL) && defined(HAVE_XLIB)) || WAYLAND_COMPAT
++#if !defined(HAVE_EGL) && defined(HAVE_XLIB) || WAYLAND_COMPAT
    #include <GL/glx.h>
  #endif
  
-@@ -2285,12 +2286,12 @@ void OpenGl_GlFunctions::load(OpenGl_Context& theCtx, Standard_Boolean theIsCore
+@@ -2284,12 +2285,12 @@ void OpenGl_GlFunctions::load(OpenGl_Context& theCtx, bool theIsCoreProfile)
    theCtx.arbSampleShading  = checkExtensionShort("GL_ARB_sample_shading");
    theCtx.arbDepthClamp = isGlGreaterEqualShort(3, 2) || checkExtensionShort("GL_ARB_depth_clamp")
                           || checkExtensionShort("NV_depth_clamp");
@@ -732,7 +695,7 @@ index 2529d5a06e..e71c8904d4 100644
  
    theCtx.hasDrawBuffers = isGlGreaterEqualShort(2, 0) ? OpenGl_FeatureInCore
                            : theCtx.arbDrawBuffers     ? OpenGl_FeatureInExtensions
-@@ -2320,9 +2321,10 @@ void OpenGl_GlFunctions::load(OpenGl_Context& theCtx, Standard_Boolean theIsCore
+@@ -2319,9 +2320,10 @@ void OpenGl_GlFunctions::load(OpenGl_Context& theCtx, bool theIsCoreProfile)
         has46 = false;
  
    // retrieve platform-dependent extensions
@@ -745,7 +708,7 @@ index 2529d5a06e..e71c8904d4 100644
    if (FindProcShort(wglGetExtensionsStringARB))
    {
      const char* aWglExts = this->wglGetExtensionsStringARB(wglGetCurrentDC());
-@@ -2356,25 +2358,29 @@ void OpenGl_GlFunctions::load(OpenGl_Context& theCtx, Standard_Boolean theIsCore
+@@ -2355,25 +2357,29 @@ void OpenGl_GlFunctions::load(OpenGl_Context& theCtx, bool theIsCoreProfile)
        FindProcShort(wglGetContextGPUIDAMD);
      }
    }
@@ -792,10 +755,10 @@ index 2529d5a06e..e71c8904d4 100644
    #endif
  
    // load OpenGL 1.2 new functions
-diff --git c/src/OpenGl/OpenGl_GraphicDriver.cxx w/src/OpenGl/OpenGl_GraphicDriver.cxx
-index a06c449019..7f317da1a3 100644
---- c/src/OpenGl/OpenGl_GraphicDriver.cxx
-+++ w/src/OpenGl/OpenGl_GraphicDriver.cxx
+diff --git c/src/Visualization/TKOpenGl/OpenGl/OpenGl_GraphicDriver.cxx w/src/Visualization/TKOpenGl/OpenGl/OpenGl_GraphicDriver.cxx
+index 32f4f2284d..302f42aab5 100644
+--- c/src/Visualization/TKOpenGl/OpenGl/OpenGl_GraphicDriver.cxx
++++ w/src/Visualization/TKOpenGl/OpenGl/OpenGl_GraphicDriver.cxx
 @@ -72,11 +72,21 @@ IMPLEMENT_STANDARD_RTTIEXT(OpenGl_GraphicDriver, Graphic3d_GraphicDriver)
    #define OpenGl_USE_GLES2
  #endif
@@ -812,14 +775,14 @@ index a06c449019..7f317da1a3 100644
 +
  namespace
  {
- static const Handle(OpenGl_Context) TheNullGlCtx;
+ static const occ::handle<OpenGl_Context> TheNullGlCtx;
  
 -#if defined(HAVE_EGL)
 +#if defined(HAVE_EGL) || WAYLAND_COMPAT
  //! Wrapper over eglChooseConfig() called with preferred defaults.
- static EGLConfig chooseEglSurfConfig(EGLDisplay theDisplay, const Handle(OpenGl_Caps)& theCaps)
+ static EGLConfig chooseEglSurfConfig(EGLDisplay theDisplay, const occ::handle<OpenGl_Caps>& theCaps)
  {
-@@ -149,7 +159,8 @@ static EGLConfig chooseEglSurfConfig(EGLDisplay theDisplay, const Handle(OpenGl_
+@@ -149,7 +159,8 @@ static EGLConfig chooseEglSurfConfig(EGLDisplay theDisplay, const occ::handle<Op
    }
    return aCfg;
  }
@@ -829,7 +792,7 @@ index a06c449019..7f317da1a3 100644
  //! Search for RGBA double-buffered visual with stencil buffer.
  static int TheDoubleBuffVisual[] =
    {GLX_RGBA, GLX_DEPTH_SIZE, 16, GLX_STENCIL_SIZE, 1, GLX_DOUBLEBUFFER, None};
-@@ -187,25 +198,31 @@ OpenGl_GraphicDriver::OpenGl_GraphicDriver(const Handle(Aspect_DisplayConnection
+@@ -187,25 +198,31 @@ OpenGl_GraphicDriver::OpenGl_GraphicDriver(const occ::handle<Aspect_DisplayConne
        myMapOfView(1, NCollection_BaseAllocator::CommonBaseAllocator()),
        myMapOfStructure(1, NCollection_BaseAllocator::CommonBaseAllocator())
  {
@@ -864,16 +827,16 @@ index a06c449019..7f317da1a3 100644
 +    }
  
 -  Display* aDisplay = (Display*)myDisplayConnection->GetDisplayAspect();
--  Bool     toSync   = ::getenv("CSF_GraphicSync") != NULL || ::getenv("CALL_SYNCHRO_X") != NULL;
+-  Bool     toSync = ::getenv("CSF_GraphicSync") != nullptr || ::getenv("CALL_SYNCHRO_X") != nullptr;
 -  XSynchronize(aDisplay, toSync);
 +    Display* aDisplay = (Display*)myDisplayConnection->GetDisplayAspect();
-+    Bool     toSync   = ::getenv("CSF_GraphicSync") != NULL || ::getenv("CALL_SYNCHRO_X") != NULL;
++    Bool toSync = ::getenv("CSF_GraphicSync") != nullptr || ::getenv("CALL_SYNCHRO_X") != nullptr;
 +    XSynchronize(aDisplay, toSync);
 +  }
  #endif
    if (theToInitialize && !InitContext())
    {
-@@ -282,31 +299,34 @@ void OpenGl_GraphicDriver::ReleaseContext()
+@@ -281,31 +298,34 @@ void OpenGl_GraphicDriver::ReleaseContext()
      aWindow->GetGlContext()->forcedRelease();
    }
  
@@ -917,17 +880,17 @@ index a06c449019..7f317da1a3 100644
 -    }
 +    myEglDisplay = (Aspect_Display)EGL_NO_DISPLAY;
 +    myEglContext = (Aspect_RenderingContext)EGL_NO_CONTEXT;
-+    myEglConfig  = NULL;
++    myEglConfig  = nullptr;
    }
 -
 -  myEglDisplay = (Aspect_Display)EGL_NO_DISPLAY;
 -  myEglContext = (Aspect_RenderingContext)EGL_NO_CONTEXT;
--  myEglConfig  = NULL;
+-  myEglConfig  = nullptr;
  #endif
-   myIsOwnContext = Standard_False;
+   myIsOwnContext = false;
  }
-@@ -316,80 +336,85 @@ void OpenGl_GraphicDriver::ReleaseContext()
- Standard_Boolean OpenGl_GraphicDriver::InitContext()
+@@ -315,80 +335,85 @@ void OpenGl_GraphicDriver::ReleaseContext()
+ bool OpenGl_GraphicDriver::InitContext()
  {
    ReleaseContext();
 -#if defined(HAVE_EGL)
@@ -937,7 +900,7 @@ index a06c449019..7f317da1a3 100644
 +#if defined(HAVE_EGL) || WAYLAND_COMPAT
 +  do
    {
--    return Standard_False;
+-    return false;
 -  }
 -  Display* aDisplay = (Display*)myDisplayConnection->GetDisplayAspect();
 -  myEglDisplay      = (Aspect_Display)eglGetDisplay(aDisplay);
@@ -947,7 +910,7 @@ index a06c449019..7f317da1a3 100644
 +  #if defined(HAVE_XLIB) && !WAYLAND_COMPAT
 +    if (myDisplayConnection.IsNull())
 +    {
-+      return Standard_False;
++      return false;
 +    }
 +    Display* aDisplay = (Display*)myDisplayConnection->GetDisplayAspect();
 +    myEglDisplay      = (Aspect_Display)eglGetDisplay(aDisplay);
@@ -958,12 +921,12 @@ index a06c449019..7f317da1a3 100644
 -  if ((EGLDisplay)myEglDisplay == EGL_NO_DISPLAY)
 -  {
 -    ::Message::SendFail("Error: no EGL display");
--    return Standard_False;
+-    return false;
 -  }
 +    if ((EGLDisplay)myEglDisplay == EGL_NO_DISPLAY)
 +    {
 +      ::Message::SendFail("Error: no EGL display");
-+      return Standard_False;
++      return false;
 +    }
  
 -  EGLint aVerMajor = 0;
@@ -971,27 +934,27 @@ index a06c449019..7f317da1a3 100644
 -  if (eglInitialize((EGLDisplay)myEglDisplay, &aVerMajor, &aVerMinor) != EGL_TRUE)
 -  {
 -    ::Message::SendFail("Error: EGL display is unavailable");
--    return Standard_False;
+-    return false;
 -  }
 +    EGLint aVerMajor = 0;
 +    EGLint aVerMinor = 0;
 +    if (eglInitialize((EGLDisplay)myEglDisplay, &aVerMajor, &aVerMinor) != EGL_TRUE)
 +    {
 +      ::Message::SendFail("Error: EGL display is unavailable");
-+      return Standard_False;
++      return false;
 +    }
  
 -  myEglConfig = chooseEglSurfConfig((EGLDisplay)myEglDisplay, myCaps);
--  if (myEglConfig == NULL)
+-  if (myEglConfig == nullptr)
 -  {
 -    ::Message::SendFail("Error: EGL does not provide compatible configurations");
--    return Standard_False;
+-    return false;
 -  }
 +    myEglConfig = chooseEglSurfConfig((EGLDisplay)myEglDisplay, myCaps);
-+    if (myEglConfig == NULL)
++    if (myEglConfig == nullptr)
 +    {
 +      ::Message::SendFail("Error: EGL does not provide compatible configurations");
-+      return Standard_False;
++      return false;
 +    }
  
    #if defined(OpenGl_USE_GLES2)
@@ -1000,7 +963,7 @@ index a06c449019..7f317da1a3 100644
 -  if (eglBindAPI(EGL_OPENGL_ES_API) != EGL_TRUE)
 -  {
 -    ::Message::SendFail("Error: EGL does not provide OpenGL ES client");
--    return Standard_False;
+-    return false;
 -  }
 -  if (myCaps->contextMajorVersionUpper != 2)
 -  {
@@ -1017,7 +980,7 @@ index a06c449019..7f317da1a3 100644
 +    if (eglBindAPI(EGL_OPENGL_ES_API) != EGL_TRUE)
 +    {
 +      ::Message::SendFail("Error: EGL does not provide OpenGL ES client");
-+      return Standard_False;
++      return false;
 +    }
 +    if (myCaps->contextMajorVersionUpper != 2)
 +    {
@@ -1030,19 +993,19 @@ index a06c449019..7f317da1a3 100644
 +        eglCreateContext((EGLDisplay)myEglDisplay, myEglConfig, EGL_NO_CONTEXT, anEglCtxAttribs2);
 +    }
    #else
--  EGLint* anEglCtxAttribs = NULL;
+-  EGLint* anEglCtxAttribs = nullptr;
 -  if (eglBindAPI(EGL_OPENGL_API) != EGL_TRUE)
 -  {
 -    ::Message::SendFail("Error: EGL does not provide OpenGL client");
--    return Standard_False;
+-    return false;
 -  }
 -  myEglContext = (Aspect_RenderingContext)
 -    eglCreateContext((EGLDisplay)myEglDisplay, myEglConfig, EGL_NO_CONTEXT, anEglCtxAttribs);
-+    EGLint* anEglCtxAttribs = NULL;
++    EGLint* anEglCtxAttribs = nullptr;
 +    if (eglBindAPI(EGL_OPENGL_API) != EGL_TRUE)
 +    {
 +      ::Message::SendFail("Error: EGL does not provide OpenGL client");
-+      return Standard_False;
++      return false;
 +    }
 +    myEglContext = (Aspect_RenderingContext)
 +      eglCreateContext((EGLDisplay)myEglDisplay, myEglConfig, EGL_NO_CONTEXT, anEglCtxAttribs);
@@ -1051,33 +1014,33 @@ index a06c449019..7f317da1a3 100644
 -  if ((EGLContext)myEglContext == EGL_NO_CONTEXT)
 -  {
 -    ::Message::SendFail("Error: EGL is unable to create OpenGL context");
--    return Standard_False;
+-    return false;
 -  }
 -  // eglMakeCurrent() fails or even crash with EGL_NO_SURFACE on some implementations
 -  // if (eglMakeCurrent ((EGLDisplay )myEglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, (EGLContext
 -  // )myEglContext) != EGL_TRUE)
 -  //{
 -  //  ::Message::SendFail ("Error: EGL is unable bind OpenGL context");
--  //  return Standard_False;
+-  //  return false;
 -  //}
 +    if ((EGLContext)myEglContext == EGL_NO_CONTEXT)
 +    {
 +      ::Message::SendFail("Error: EGL is unable to create OpenGL context");
-+      return Standard_False;
++      return false;
 +    }
 +    // eglMakeCurrent() fails or even crash with EGL_NO_SURFACE on some implementations
 +    // if (eglMakeCurrent ((EGLDisplay )myEglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, (EGLContext
 +    // )myEglContext) != EGL_TRUE)
 +    //{
 +    //  ::Message::SendFail ("Error: EGL is unable bind OpenGL context");
-+    //  return Standard_False;
++    //  return false;
 +    //}
 +  } while (false);
  #endif
    chooseVisualInfo();
-   myIsOwnContext = Standard_True;
-@@ -403,32 +428,38 @@ Standard_Boolean OpenGl_GraphicDriver::InitEglContext(Aspect_Display          th
-                                                       void*                   theEglConfig)
+   myIsOwnContext = true;
+@@ -402,32 +427,38 @@ bool OpenGl_GraphicDriver::InitEglContext(Aspect_Display          theEglDisplay,
+                                           void*                   theEglConfig)
  {
    ReleaseContext();
 -#if defined(HAVE_EGL)
@@ -1086,7 +1049,7 @@ index a06c449019..7f317da1a3 100644
 +#if defined(HAVE_EGL) || WAYLAND_COMPAT
 +  do
    {
--    return Standard_False;
+-    return false;
 -  }
 -  #endif
 +    if (RUN_UNIX_X11)
@@ -1094,71 +1057,70 @@ index a06c449019..7f317da1a3 100644
  
 -  if ((EGLDisplay)theEglDisplay == EGL_NO_DISPLAY || (EGLContext)theEglContext == EGL_NO_CONTEXT)
 -  {
--    return Standard_False;
+-    return false;
 -  }
 -  myEglDisplay = theEglDisplay;
 -  myEglContext = theEglContext;
 -  myEglConfig  = theEglConfig;
--  if (theEglConfig == NULL)
+-  if (theEglConfig == nullptr)
 -  {
 -    myEglConfig = chooseEglSurfConfig((EGLDisplay)myEglDisplay, myCaps);
--    if (myEglConfig == NULL)
+-    if (myEglConfig == nullptr)
 +  #if defined(HAVE_XLIB) && !WAYLAND_COMPAT
 +    if (myDisplayConnection.IsNull())
      {
 -      ::Message::SendFail("Error: EGL does not provide compatible configurations");
-       return Standard_False;
+       return false;
      }
 -  }
 -  chooseVisualInfo();
--  return Standard_True;
+-  return true;
 +  #endif
 +
 +    if ((EGLDisplay)theEglDisplay == EGL_NO_DISPLAY || (EGLContext)theEglContext == EGL_NO_CONTEXT)
 +    {
-+      return Standard_False;
++      return false;
 +    }
 +    myEglDisplay = theEglDisplay;
 +    myEglContext = theEglContext;
 +    myEglConfig  = theEglConfig;
-+    if (theEglConfig == NULL)
++    if (theEglConfig == nullptr)
 +    {
 +      myEglConfig = chooseEglSurfConfig((EGLDisplay)myEglDisplay, myCaps);
-+      if (myEglConfig == NULL)
++      if (myEglConfig == nullptr)
 +      {
 +        ::Message::SendFail("Error: EGL does not provide compatible configurations");
-+        return Standard_False;
++        return false;
 +      }
 +    }
 +    chooseVisualInfo();
-+    return Standard_True;
++    return true;
 +  } while (false);
  #else
    (void)theEglDisplay;
    (void)theEglContext;
-@@ -446,12 +477,15 @@ void OpenGl_GraphicDriver::chooseVisualInfo()
+@@ -445,12 +476,15 @@ void OpenGl_GraphicDriver::chooseVisualInfo()
      return;
    }
  
 -#if defined(HAVE_XLIB)
--  Display* aDisp = (Display*)myDisplayConnection->GetDisplayAspect();
 +#if defined(HAVE_XLIB) || WAYLAND_COMPAT
 +  if (RUN_WAYLAND)
 +    return;
- 
-+  Display*        aDisp      = (Display*)myDisplayConnection->GetDisplayAspect();
-   XVisualInfo*    aVisInfo   = NULL;
-   Aspect_FBConfig anFBConfig = NULL;
--  #if defined(HAVE_EGL)
 +
+   Display* aDisp = (Display*)myDisplayConnection->GetDisplayAspect();
+ 
+   XVisualInfo*    aVisInfo   = nullptr;
+   Aspect_FBConfig anFBConfig = nullptr;
+-  #if defined(HAVE_EGL)
 +  #if defined(HAVE_EGL) && !WAYLAND_COMPAT
    XVisualInfo aVisInfoTmp;
    memset(&aVisInfoTmp, 0, sizeof(aVisInfoTmp));
    aVisInfoTmp.screen = DefaultScreen(aDisp);
-diff --git c/src/OpenGl/OpenGl_Window.cxx w/src/OpenGl/OpenGl_Window.cxx
-index 7382d9b75c..97f27875a4 100644
---- c/src/OpenGl/OpenGl_Window.cxx
-+++ w/src/OpenGl/OpenGl_Window.cxx
+diff --git c/src/Visualization/TKOpenGl/OpenGl/OpenGl_Window.cxx w/src/Visualization/TKOpenGl/OpenGl/OpenGl_Window.cxx
+index 4c7caf381f..124acc8e28 100644
+--- c/src/Visualization/TKOpenGl/OpenGl/OpenGl_Window.cxx
++++ w/src/Visualization/TKOpenGl/OpenGl/OpenGl_Window.cxx
 @@ -34,7 +34,11 @@
  
  IMPLEMENT_STANDARD_RTTIEXT(OpenGl_Window, Standard_Transient)
@@ -1172,7 +1134,7 @@ index 7382d9b75c..97f27875a4 100644
    #include <EGL/egl.h>
  #elif defined(HAVE_XLIB)
    #include <GL/glx.h>
-@@ -45,10 +49,10 @@ IMPLEMENT_STANDARD_RTTIEXT(OpenGl_Window, Standard_Transient)
+@@ -45,9 +49,10 @@ IMPLEMENT_STANDARD_RTTIEXT(OpenGl_Window, Standard_Transient)
  namespace
  {
  
@@ -1180,41 +1142,31 @@ index 7382d9b75c..97f27875a4 100644
 +  #ifdef COMPILE_EGL
    //
 -  #elif defined(_WIN32)
--
 +  #endif
 +  #ifdef COMPILE_WIN32
+ 
    // WGL_ARB_pixel_format
      #ifndef WGL_NUMBER_PIXEL_FORMATS_ARB
-       #define WGL_NUMBER_PIXEL_FORMATS_ARB 0x2000
-@@ -126,8 +130,8 @@ static LRESULT CALLBACK wndProcDummy(HWND theWin, UINT theMsg, WPARAM theParamW,
+@@ -126,7 +131,8 @@ static LRESULT CALLBACK wndProcDummy(HWND theWin, UINT theMsg, WPARAM theParamW,
  {
    return DefWindowProcW(theWin, theMsg, theParamW, theParamL);
  }
 -  #elif defined(HAVE_XLIB)
--
 +  #endif
 +  #ifdef COMPILE_XLIB
+ 
    // GLX_ARB_create_context
      #ifndef GLX_CONTEXT_MAJOR_VERSION_ARB
-       #define GLX_CONTEXT_DEBUG_BIT_ARB 0x00000001
-@@ -141,7 +145,6 @@ static LRESULT CALLBACK wndProcDummy(HWND theWin, UINT theMsg, WPARAM theParamW,
-       #define GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
-       #define GLX_CONTEXT_PROFILE_MASK_ARB 0x9126
-     #endif
--
- //! Dummy XError handler which just skips errors
- static int xErrorDummyHandler(Display* /*theDisplay*/, XErrorEvent* /*theErrorEvent*/)
- {
-@@ -190,118 +193,122 @@ void OpenGl_Window::Init(const Handle(OpenGl_GraphicDriver)& theDriver,
+@@ -189,118 +195,122 @@ void OpenGl_Window::Init(const occ::handle<OpenGl_GraphicDriver>& theDriver,
  
-   Standard_Boolean isCoreProfile = Standard_False;
+   bool isCoreProfile = false;
  
 -  #if defined(HAVE_EGL)
 -  EGLDisplay anEglDisplay = (EGLDisplay)theDriver->getRawGlDisplay();
 -  EGLContext anEglContext = (EGLContext)theDriver->getRawGlContext();
 -  EGLConfig  anEglConfig  = (EGLConfig)theDriver->getRawGlConfig();
 -  if (anEglDisplay == EGL_NO_DISPLAY || anEglContext == EGL_NO_CONTEXT
--      || (anEglConfig == NULL && (EGLContext)theGContext == EGL_NO_CONTEXT))
+-      || (anEglConfig == nullptr && (EGLContext)theGContext == EGL_NO_CONTEXT))
 +  #ifdef COMPILE_EGL
 +  if (!RUN_UNIX_X11)
    {
@@ -1237,13 +1189,13 @@ index 7382d9b75c..97f27875a4 100644
 -    anEglSurf = eglCreateWindowSurface(anEglDisplay,
 -                                       anEglConfig,
 -                                       (EGLNativeWindowType)myPlatformWindow->NativeHandle(),
--                                       NULL);
+-                                       nullptr);
 -    if (anEglSurf == EGL_NO_SURFACE && myPlatformWindow->NativeHandle() != 0)
 +    EGLDisplay anEglDisplay = (EGLDisplay)theDriver->getRawGlDisplay();
 +    EGLContext anEglContext = (EGLContext)theDriver->getRawGlContext();
 +    EGLConfig  anEglConfig  = (EGLConfig)theDriver->getRawGlConfig();
 +    if (anEglDisplay == EGL_NO_DISPLAY || anEglContext == EGL_NO_CONTEXT
-+        || (anEglConfig == NULL && (EGLContext)theGContext == EGL_NO_CONTEXT))
++        || (anEglConfig == nullptr && (EGLContext)theGContext == EGL_NO_CONTEXT))
      {
        throw Aspect_GraphicDeviceDefinitionError(
 -        "OpenGl_Window, EGL is unable to create surface for window!");
@@ -1254,7 +1206,7 @@ index 7382d9b75c..97f27875a4 100644
 -      // window-less EGL context (off-screen)
 -      // throw Aspect_GraphicDeviceDefinitionError("OpenGl_Window, EGL is unable to retrieve current
 -      // surface!");
--      if (anEglConfig != NULL)
+-      if (anEglConfig != nullptr)
 -      {
 -    #if !defined(__EMSCRIPTEN__) // eglCreatePbufferSurface() is not implemented by Emscripten EGL
 -        const int aSurfAttribs[] = {EGL_WIDTH,
@@ -1295,7 +1247,7 @@ index 7382d9b75c..97f27875a4 100644
 -      // window-less EGL context (off-screen)
 -      // throw Aspect_GraphicDeviceDefinitionError("OpenGl_Window, EGL is unable to retrieve current
 -      // surface!");
--      if (anEglConfig != NULL)
+-      if (anEglConfig != nullptr)
 -      {
 -    #if !defined(__EMSCRIPTEN__) // eglCreatePbufferSurface() is not implemented by Emscripten EGL
 -        const int aSurfAttribs[] = {EGL_WIDTH,
@@ -1344,7 +1296,7 @@ index 7382d9b75c..97f27875a4 100644
 +      anEglSurf = eglCreateWindowSurface(anEglDisplay,
 +                                         anEglConfig,
 +                                         (EGLNativeWindowType)myPlatformWindow->NativeHandle(),
-+                                         NULL);
++                                         nullptr);
 +      if (anEglSurf == EGL_NO_SURFACE && myPlatformWindow->NativeHandle() != 0)
 +      {
 +        throw Aspect_GraphicDeviceDefinitionError(
@@ -1355,7 +1307,7 @@ index 7382d9b75c..97f27875a4 100644
 +        // window-less EGL context (off-screen)
 +        // throw Aspect_GraphicDeviceDefinitionError("OpenGl_Window, EGL is unable to retrieve
 +        // current surface!");
-+        if (anEglConfig != NULL)
++        if (anEglConfig != nullptr)
 +        {
 +    #if !defined(__EMSCRIPTEN__) // eglCreatePbufferSurface() is not implemented by Emscripten EGL
 +          const int aSurfAttribs[] = {EGL_WIDTH,
@@ -1396,7 +1348,7 @@ index 7382d9b75c..97f27875a4 100644
 +        // window-less EGL context (off-screen)
 +        // throw Aspect_GraphicDeviceDefinitionError("OpenGl_Window, EGL is unable to retrieve
 +        // current surface!");
-+        if (anEglConfig != NULL)
++        if (anEglConfig != nullptr)
 +        {
 +    #if !defined(__EMSCRIPTEN__) // eglCreatePbufferSurface() is not implemented by Emscripten EGL
 +          const int aSurfAttribs[] = {EGL_WIDTH,
@@ -1435,7 +1387,7 @@ index 7382d9b75c..97f27875a4 100644
    (void)theDriver;
    HWND  aWindow   = (HWND)myPlatformWindow->NativeHandle();
    HDC   aWindowDC = GetDC(aWindow);
-@@ -601,156 +608,161 @@ void OpenGl_Window::Init(const Handle(OpenGl_GraphicDriver)& theDriver,
+@@ -600,164 +610,169 @@ void OpenGl_Window::Init(const occ::handle<OpenGl_GraphicDriver>& theDriver,
                      (Aspect_Handle)aWindowDC,
                      (Aspect_RenderingContext)aGContext,
                      isCoreProfile);
@@ -1443,7 +1395,7 @@ index 7382d9b75c..97f27875a4 100644
 -  Window     aWindow   = (Window)myPlatformWindow->NativeHandle();
 -  Display*   aDisp     = (Display*)theDriver->GetDisplayConnection()->GetDisplayAspect();
 -  GLXContext aGContext = (GLXContext)theGContext;
--  GLXContext aSlaveCtx = !theShareCtx.IsNull() ? (GLXContext)theShareCtx->myGContext : NULL;
+-  GLXContext aSlaveCtx = !theShareCtx.IsNull() ? (GLXContext)theShareCtx->myGContext : nullptr;
 -
 -  XWindowAttributes aWinAttribs;
 -  XGetWindowAttributes(aDisp, aWindow, &aWinAttribs);
@@ -1455,7 +1407,7 @@ index 7382d9b75c..97f27875a4 100644
 -    XGetVisualInfo(aDisp, VisualIDMask | VisualScreenMask, &aVisInfo, &aNbItems),
 -    &XFree);
 -  int isGl = 0;
--  if (aVis.get() == NULL)
+-  if (aVis.get() == nullptr)
 +  #endif
 +  #ifdef COMPILE_XLIB
 +  if (!RUN_WAYLAND)
@@ -1472,12 +1424,12 @@ index 7382d9b75c..97f27875a4 100644
 +    Window     aWindow   = (Window)myPlatformWindow->NativeHandle();
 +    Display*   aDisp     = (Display*)theDriver->GetDisplayConnection()->GetDisplayAspect();
 +    GLXContext aGContext = (GLXContext)theGContext;
-+    GLXContext aSlaveCtx = !theShareCtx.IsNull() ? (GLXContext)theShareCtx->myGContext : NULL;
++    GLXContext aSlaveCtx = !theShareCtx.IsNull() ? (GLXContext)theShareCtx->myGContext : nullptr;
  
 -  // create new context
 -  GLXFBConfig anFBConfig = myPlatformWindow->NativeFBConfig();
 -  const char* aGlxExts   = glXQueryExtensionsString(aDisp, aVisInfo.screen);
--  if (myOwnGContext && anFBConfig != NULL
+-  if (myOwnGContext && anFBConfig != nullptr
 -      && OpenGl_Context::CheckExtension(aGlxExts, "GLX_ARB_create_context_profile"))
 -  {
 -    // Replace default XError handler to ignore errors.
@@ -1506,31 +1458,31 @@ index 7382d9b75c..97f27875a4 100644
 -                               0};
 -
 -      // try to create the core profile of highest OpenGL version supported by OCCT
--      for (int aLowVer4 = 6; aLowVer4 >= 0 && aGContext == NULL; --aLowVer4)
+-      for (int aLowVer4 = 6; aLowVer4 >= 0 && aGContext == nullptr; --aLowVer4)
 -      {
 -        aCoreCtxAttribs[1] = 4;
 -        aCoreCtxAttribs[3] = aLowVer4;
 -        aGContext          = aCreateCtxProc(aDisp, anFBConfig, aSlaveCtx, True, aCoreCtxAttribs);
 -      }
--      for (int aLowVer3 = 3; aLowVer3 >= 2 && aGContext == NULL; --aLowVer3)
+-      for (int aLowVer3 = 3; aLowVer3 >= 2 && aGContext == nullptr; --aLowVer3)
 -      {
 -        aCoreCtxAttribs[1] = 3;
 -        aCoreCtxAttribs[3] = aLowVer3;
 -        aGContext          = aCreateCtxProc(aDisp, anFBConfig, aSlaveCtx, True, aCoreCtxAttribs);
 -      }
--      isCoreProfile = aGContext != NULL;
+-      isCoreProfile = aGContext != nullptr;
 -    }
 -
--    if (aGContext == NULL)
+-    if (aGContext == nullptr)
 -    {
 -      int aCtxAttribs[] = {GLX_CONTEXT_FLAGS_ARB,
 -                           theCaps->contextDebug ? GLX_CONTEXT_DEBUG_BIT_ARB : 0,
 -                           0,
 -                           0};
--      isCoreProfile     = Standard_False;
+-      isCoreProfile     = false;
 -      aGContext         = aCreateCtxProc(aDisp, anFBConfig, aSlaveCtx, True, aCtxAttribs);
 -
--      if (aGContext != NULL && !theCaps->contextCompatible)
+-      if (aGContext != nullptr && !theCaps->contextCompatible)
 -      {
 -        TCollection_ExtendedString aMsg(
 -          "OpenGl_Window::CreateWindow: core profile creation failed.");
@@ -1544,10 +1496,10 @@ index 7382d9b75c..97f27875a4 100644
 -    XSetErrorHandler(anOldHandler);
 -  }
 -
--  if (myOwnGContext && aGContext == NULL)
+-  if (myOwnGContext && aGContext == nullptr)
 -  {
 -    aGContext = glXCreateContext(aDisp, aVis.get(), aSlaveCtx, GL_TRUE);
--    if (aGContext == NULL)
+-    if (aGContext == nullptr)
 +    XWindowAttributes aWinAttribs;
 +    XGetWindowAttributes(aDisp, aWindow, &aWinAttribs);
 +    XVisualInfo aVisInfo;
@@ -1558,7 +1510,7 @@ index 7382d9b75c..97f27875a4 100644
 +      XGetVisualInfo(aDisp, VisualIDMask | VisualScreenMask, &aVisInfo, &aNbItems),
 +      &XFree);
 +    int isGl = 0;
-+    if (aVis.get() == NULL)
++    if (aVis.get() == nullptr)
      {
        throw Aspect_GraphicDeviceDefinitionError(
 -        "OpenGl_Window::CreateWindow: glXCreateContext failed.");
@@ -1582,13 +1534,21 @@ index 7382d9b75c..97f27875a4 100644
 -  glXGetConfig(aDisp, aVis.get(), GLX_DEPTH_SIZE, &aDepthSize);
 -  glXGetConfig(aDisp, aVis.get(), GLX_STENCIL_SIZE, &aStencilSize);
 -  if (aDepthSize < 1)
+-  {
 -    addMsgToList(aList, "no depth buffer");
+-  }
 -  if (aStencilSize < 1)
+-  {
 -    addMsgToList(aList, "no stencil buffer");
+-  }
 -  if (isRGBA == 0)
+-  {
 -    addMsgToList(aList, "no RGBA color buffer");
+-  }
 -  if (isDoubleBuffer == 0)
+-  {
 -    addMsgToList(aList, "no Double Buffer");
+-  }
 -  if (theCaps->contextStereo && isStereo == 0)
 -  {
 -    addMsgToList(aList, "no Quad Buffer");
@@ -1607,7 +1567,7 @@ index 7382d9b75c..97f27875a4 100644
 +    // create new context
 +    GLXFBConfig anFBConfig = myPlatformWindow->NativeFBConfig();
 +    const char* aGlxExts   = glXQueryExtensionsString(aDisp, aVisInfo.screen);
-+    if (myOwnGContext && anFBConfig != NULL
++    if (myOwnGContext && anFBConfig != nullptr
 +        && OpenGl_Context::CheckExtension(aGlxExts, "GLX_ARB_create_context_profile"))
 +    {
 +      // Replace default XError handler to ignore errors.
@@ -1636,22 +1596,22 @@ index 7382d9b75c..97f27875a4 100644
 +                                 0};
 +
 +        // try to create the core profile of highest OpenGL version supported by OCCT
-+        for (int aLowVer4 = 6; aLowVer4 >= 0 && aGContext == NULL; --aLowVer4)
++        for (int aLowVer4 = 6; aLowVer4 >= 0 && aGContext == nullptr; --aLowVer4)
 +        {
 +          aCoreCtxAttribs[1] = 4;
 +          aCoreCtxAttribs[3] = aLowVer4;
 +          aGContext          = aCreateCtxProc(aDisp, anFBConfig, aSlaveCtx, True, aCoreCtxAttribs);
 +        }
-+        for (int aLowVer3 = 3; aLowVer3 >= 2 && aGContext == NULL; --aLowVer3)
++        for (int aLowVer3 = 3; aLowVer3 >= 2 && aGContext == nullptr; --aLowVer3)
 +        {
 +          aCoreCtxAttribs[1] = 3;
 +          aCoreCtxAttribs[3] = aLowVer3;
 +          aGContext          = aCreateCtxProc(aDisp, anFBConfig, aSlaveCtx, True, aCoreCtxAttribs);
 +        }
-+        isCoreProfile = aGContext != NULL;
++        isCoreProfile = aGContext != nullptr;
 +      }
 +
-+      if (aGContext == NULL)
++      if (aGContext == nullptr)
 +      {
 +        int aCtxAttribs[] = {GLX_CONTEXT_FLAGS_ARB,
 +                             theCaps->contextDebug ? GLX_CONTEXT_DEBUG_BIT_ARB : 0,
@@ -1660,7 +1620,7 @@ index 7382d9b75c..97f27875a4 100644
 -                             aMsg);
 -  }
 +                             0};
-+        isCoreProfile     = Standard_False;
++        isCoreProfile     = false;
 +        aGContext         = aCreateCtxProc(aDisp, anFBConfig, aSlaveCtx, True, aCtxAttribs);
  
 -  myGlContext->Init((Aspect_Drawable)aWindow,
@@ -1668,7 +1628,7 @@ index 7382d9b75c..97f27875a4 100644
 -                    (Aspect_RenderingContext)aGContext,
 -                    isCoreProfile);
 -  #else
-+        if (aGContext != NULL && !theCaps->contextCompatible)
++        if (aGContext != nullptr && !theCaps->contextCompatible)
 +        {
 +          TCollection_ExtendedString aMsg(
 +            "OpenGl_Window::CreateWindow: core profile creation failed.");
@@ -1682,10 +1642,10 @@ index 7382d9b75c..97f27875a4 100644
 +      XSetErrorHandler(anOldHandler);
 +    }
 +
-+    if (myOwnGContext && aGContext == NULL)
++    if (myOwnGContext && aGContext == nullptr)
 +    {
 +      aGContext = glXCreateContext(aDisp, aVis.get(), aSlaveCtx, GL_TRUE);
-+      if (aGContext == NULL)
++      if (aGContext == nullptr)
 +      {
 +        throw Aspect_GraphicDeviceDefinitionError(
 +          "OpenGl_Window::CreateWindow: glXCreateContext failed.");
@@ -1702,13 +1662,21 @@ index 7382d9b75c..97f27875a4 100644
 +    glXGetConfig(aDisp, aVis.get(), GLX_DEPTH_SIZE, &aDepthSize);
 +    glXGetConfig(aDisp, aVis.get(), GLX_STENCIL_SIZE, &aStencilSize);
 +    if (aDepthSize < 1)
++    {
 +      addMsgToList(aList, "no depth buffer");
++    }
 +    if (aStencilSize < 1)
++    {
 +      addMsgToList(aList, "no stencil buffer");
++    }
 +    if (isRGBA == 0)
++    {
 +      addMsgToList(aList, "no RGBA color buffer");
++    }
 +    if (isDoubleBuffer == 0)
++    {
 +      addMsgToList(aList, "no Double Buffer");
++    }
 +    if (theCaps->contextStereo && isStereo == 0)
 +    {
 +      addMsgToList(aList, "no Quad Buffer");
@@ -1739,16 +1707,20 @@ index 7382d9b75c..97f27875a4 100644
    // not implemented
    (void)isCoreProfile;
    #endif
-@@ -772,12 +784,13 @@ OpenGl_Window::~OpenGl_Window()
+@@ -779,12 +794,16 @@ OpenGl_Window::~OpenGl_Window()
    // release "GL" context if it is owned by window
    // Mesa implementation can fail to destroy GL context if it set for current thread.
    // It should be safer to unset thread GL context before its destruction.
 -  #if defined(HAVE_EGL)
 -  if ((EGLSurface)myGlContext->myWindow != EGL_NO_SURFACE)
-+  #ifdef COMPILE_EGL)
-+  if (!RUN_UNIX_X11 && (EGLSurface)myGlContext->myWindow != EGL_NO_SURFACE)
++  #ifdef COMPILE_EGL
++  if (!RUN_UNIX_X11)
    {
-     eglDestroySurface((EGLDisplay)myGlContext->myDisplay, (EGLSurface)myGlContext->myWindow);
+-    eglDestroySurface((EGLDisplay)myGlContext->myDisplay, (EGLSurface)myGlContext->myWindow);
++    if ((EGLSurface)myGlContext->myWindow != EGL_NO_SURFACE)
++    {
++      eglDestroySurface((EGLDisplay)myGlContext->myDisplay, (EGLSurface)myGlContext->myWindow);
++    }
    }
 -  #elif defined(_WIN32)
 +  #endif
@@ -1756,7 +1728,7 @@ index 7382d9b75c..97f27875a4 100644
    HWND  aWindow         = (HWND)myGlContext->myWindow;
    HDC   aWindowDC       = (HDC)myGlContext->myDisplay;
    HGLRC aWindowGContext = (HGLRC)myGlContext->myGContext;
-@@ -794,24 +807,29 @@ OpenGl_Window::~OpenGl_Window()
+@@ -801,24 +820,29 @@ OpenGl_Window::~OpenGl_Window()
      wglDeleteContext(aWindowGContext);
    }
    ReleaseDC(aWindow, aWindowDC);
@@ -1766,14 +1738,14 @@ index 7382d9b75c..97f27875a4 100644
 -  GLXContext aThreadGContext = glXGetCurrentContext();
 -  myGlContext.Nullify();
 -
--  if (aDisplay != NULL)
+-  if (aDisplay != nullptr)
 +  #endif
 +  #ifdef COMPILE_XLIB
 +  if (!RUN_WAYLAND)
    {
 -    if (aThreadGContext == aWindowGContext)
 -    {
--      glXMakeCurrent(aDisplay, None, NULL);
+-      glXMakeCurrent(aDisplay, None, nullptr);
 -    }
 +    Display*   aDisplay        = (Display*)myGlContext->myDisplay;
 +    GLXContext aWindowGContext = (GLXContext)myGlContext->myGContext;
@@ -1783,11 +1755,11 @@ index 7382d9b75c..97f27875a4 100644
 -    // FSXXX sync necessary if non-direct rendering
 -    glXWaitGL();
 -    glXDestroyContext(aDisplay, aWindowGContext);
-+    if (aDisplay != NULL)
++    if (aDisplay != nullptr)
 +    {
 +      if (aThreadGContext == aWindowGContext)
 +      {
-+        glXMakeCurrent(aDisplay, None, NULL);
++        glXMakeCurrent(aDisplay, None, nullptr);
 +      }
 +
 +      // FSXXX sync necessary if non-direct rendering
@@ -1801,7 +1773,7 @@ index 7382d9b75c..97f27875a4 100644
      // not implemented
    #endif
  }
-@@ -855,43 +873,46 @@ void OpenGl_Window::init()
+@@ -860,43 +884,46 @@ void OpenGl_Window::init()
      return;
    }
  
@@ -1813,8 +1785,8 @@ index 7382d9b75c..97f27875a4 100644
 -    // define an offscreen default FBO to avoid rendering into EGL_NO_SURFACE;
 -    // note that this code is currently never called, since eglCreatePbufferSurface() is used
 -    // instead as more robust solution for offscreen rendering on bugged OpenGL ES drivers
--    Handle(OpenGl_FrameBuffer) aDefFbo =
--      myGlContext->SetDefaultFrameBuffer(Handle(OpenGl_FrameBuffer)());
+-    occ::handle<OpenGl_FrameBuffer> aDefFbo =
+-      myGlContext->SetDefaultFrameBuffer(occ::handle<OpenGl_FrameBuffer>());
 -    if (!aDefFbo.IsNull())
 +    if ((EGLSurface)myGlContext->myWindow == EGL_NO_SURFACE)
      {
@@ -1827,8 +1799,8 @@ index 7382d9b75c..97f27875a4 100644
 +      // define an offscreen default FBO to avoid rendering into EGL_NO_SURFACE;
 +      // note that this code is currently never called, since eglCreatePbufferSurface() is used
 +      // instead as more robust solution for offscreen rendering on bugged OpenGL ES drivers
-+      Handle(OpenGl_FrameBuffer) aDefFbo =
-+        myGlContext->SetDefaultFrameBuffer(Handle(OpenGl_FrameBuffer)());
++      occ::handle<OpenGl_FrameBuffer> aDefFbo =
++        myGlContext->SetDefaultFrameBuffer(occ::handle<OpenGl_FrameBuffer>());
 +      if (!aDefFbo.IsNull())
 +      {
 +        aDefFbo->Release(myGlContext.operator->());
@@ -1838,10 +1810,10 @@ index 7382d9b75c..97f27875a4 100644
 +        aDefFbo = new OpenGl_FrameBuffer();
 +      }
  
--    OpenGl_ColorFormats aColorFormats;
+-    NCollection_DynamicArray<int> aColorFormats;
 -    aColorFormats.Append(GL_RGBA8);
 -    if (!aDefFbo->InitRenderBuffer(myGlContext, mySize, aColorFormats, GL_DEPTH24_STENCIL8))
-+      OpenGl_ColorFormats aColorFormats;
++      NCollection_DynamicArray<int> aColorFormats;
 +      aColorFormats.Append(GL_RGBA8);
 +      if (!aDefFbo->InitRenderBuffer(myGlContext, mySize, aColorFormats, GL_DEPTH24_STENCIL8))
 +      {
@@ -1880,96 +1852,108 @@ index 7382d9b75c..97f27875a4 100644
    }
    #else
      //
-diff --git c/src/Standard/FILES w/src/Standard/FILES
-index c5d5af44cb..c6a38d3cad 100755
---- c/src/Standard/FILES
-+++ w/src/Standard/FILES
-@@ -44,6 +44,7 @@ Standard_JmpBuf.hxx
- Standard_LicenseError.hxx
- Standard_LicenseNotFound.hxx
- Standard_Macro.hxx
-+Standard_Macro_Runtime.hxx
- Standard_MemoryUtils.hxx
- Standard_MMgrOpt.cxx
- Standard_MMgrOpt.hxx
-diff --git c/src/Standard/Standard_Macro_Runtime.hxx w/src/Standard/Standard_Macro_Runtime.hxx
-new file mode 100644
-index 0000000000..830e939f6a
---- /dev/null
-+++ w/src/Standard/Standard_Macro_Runtime.hxx
-@@ -0,0 +1,75 @@
-+
-+// Copyright (c) 1998-1999 Matra Datavision
-+// Copyright (c) 1999-2014 OPEN CASCADE SAS
-+//
-+// This file is part of Open CASCADE Technology software library.
-+//
-+// This library is free software; you can redistribute it and/or modify it under
-+// the terms of the GNU Lesser General Public License version 2.1 as published
-+// by the Free Software Foundation, with special exception defined in the file
-+// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
-+// distribution for complete text of the license and disclaimer of any warranty.
-+//
-+// Alternatively, this file may be used under the terms of Open CASCADE
-+// commercial license or contractual agreement.
-+
-+//! @file
-+//! This file provides macros to determine system runtime compatibility
-+//! capabilities. It's primary purpose is to compile both X11 and Wayland
-+//! paths for Unix-like systems thus allowing the consumer to select the
-+//! appropriate runtime path.
-+
-+#ifndef _Standard_Macro_Runtime_HeaderFile
-+#define _Standard_Macro_Runtime_HeaderFile
-+
-+//! @def CHECK_ENV_VAL
-+//! Compares the value of an environment variable
-+//! @returns bool
-+#define CHECK_ENV_VAL(key, val)                                                                    \
-+  ([&]() -> bool {                                                                                 \
-+    const char* result = std::getenv(key);                                                         \
-+    return result != nullptr && std::strcmp(result, val) == 0;                                     \
-+  }())
-+
-+//! @def RUN_UNIX_X11
-+//! Determine a X11 runtime path on Wayland compatible systems
-+//! @returns bool
-+#define RUN_UNIX_X11                                                                               \
-+  ([]() -> bool {                                                                                  \
-+    if (!WAYLAND_COMPAT)                                                                           \
-+      return 0;                                                                                    \
-+                                                                                                   \
-+    return CHECK_ENV_VAL("XDG_SESSION_TYPE", "x11") || CHECK_ENV_VAL("GDK_BACKEND", "x11")         \
-+           || CHECK_ENV_VAL("QT_QPA_PLATFORM", "xcb");                                             \
-+  }())
-+
-+//! @def RUN_WAYLAND
-+//! Determine a Wayland runtime path on Wayland compatible systems
-+//! @returns bool
-+#define RUN_WAYLAND                                                                                \
-+  ([]() -> bool {                                                                                  \
-+    if (!WAYLAND_COMPAT || RUN_UNIX_X11)                                                           \
-+      return 0;                                                                                    \
-+                                                                                                   \
-+    return CHECK_ENV_VAL("XDG_SESSION_TYPE", "wayland") || CHECK_ENV_VAL("GDK_BACKEND", "wayland") \
-+           || CHECK_ENV_VAL("QT_QPA_PLATFORM", "wayland");                                         \
-+  }())
-+
-+// Compiler definitions to negate elif macro patterns downstream.
-+// This allows for compiling both X11 and Wayland paths.
-+#if WAYLAND_COMPAT
-+  #define COMPILE_EGL
-+  #define COMPILE_XLIB
-+#elif defined(HAVE_EGL)
-+  #define COMPILE_EGL
-+#elif defined(_WIN32)
-+  #define COMPILE_WIN32
-+#elif defined(HAVE_XLIB)
-+  #define COMPILE_XLIB
-+#elif defined(__APPLE__)
-+  #define COMPILE_APPLE
-+#else
-+  #define COMPILE_NOOP
+diff --git c/src/Visualization/TKService/Aspect/Aspect_DisplayConnection.cxx w/src/Visualization/TKService/Aspect/Aspect_DisplayConnection.cxx
+index 93c1cf6ba6..5b3c2ac255 100644
+--- c/src/Visualization/TKService/Aspect/Aspect_DisplayConnection.cxx
++++ w/src/Visualization/TKService/Aspect/Aspect_DisplayConnection.cxx
+@@ -15,8 +15,9 @@
+ 
+ #include <Aspect_DisplayConnectionDefinitionError.hxx>
+ #include <OSD_Environment.hxx>
++#include <Standard_Macro_Runtime.hxx>
+ 
+-#if defined(HAVE_XLIB)
++#if defined(HAVE_XLIB) || WAYLAND_COMPAT
+   #include <X11/Xlib.h>
+   #include <X11/Xutil.h>
+ #endif
+@@ -27,14 +28,17 @@ IMPLEMENT_STANDARD_RTTIEXT(Aspect_DisplayConnection, Standard_Transient)
+ 
+ Aspect_DisplayConnection::Aspect_DisplayConnection()
+ {
+-#if defined(HAVE_XLIB)
+-  myDisplay       = nullptr;
+-  myDefVisualInfo = nullptr;
+-  myDefFBConfig   = nullptr;
+-  myIsOwnDisplay  = false;
+-  OSD_Environment anEnv("DISPLAY");
+-  myDisplayName = anEnv.Value();
+-  Init(nullptr);
++#if defined(HAVE_XLIB) || WAYLAND_COMPAT
++  if (!RUN_WAYLAND)
++  {
++    myDisplay       = nullptr;
++    myDefVisualInfo = nullptr;
++    myDefFBConfig   = nullptr;
++    myIsOwnDisplay  = false;
++    OSD_Environment anEnv("DISPLAY");
++    myDisplayName = anEnv.Value();
++    Init(nullptr);
++  }
+ #endif
+ }
+ 
+@@ -42,14 +46,17 @@ Aspect_DisplayConnection::Aspect_DisplayConnection()
+ 
+ Aspect_DisplayConnection::~Aspect_DisplayConnection()
+ {
+-#if defined(HAVE_XLIB)
+-  if (myDefVisualInfo != nullptr)
++#if defined(HAVE_XLIB) || WAYLAND_COMPAT
++  if (!RUN_WAYLAND)
+   {
+-    XFree(myDefVisualInfo);
+-  }
+-  if (myDisplay != nullptr && myIsOwnDisplay)
+-  {
+-    XCloseDisplay((Display*)myDisplay);
++    if (myDefVisualInfo != nullptr)
++    {
++      XFree(myDefVisualInfo);
++    }
++    if (myDisplay != nullptr && myIsOwnDisplay)
++    {
++      XCloseDisplay((Display*)myDisplay);
++    }
+   }
+ #endif
+ }
+@@ -84,8 +91,11 @@ void Aspect_DisplayConnection::SetDefaultVisualInfo(Aspect_XVisualInfo* theVisua
+ {
+   if (myDefVisualInfo != nullptr)
+   {
+-#if defined(HAVE_XLIB)
+-    XFree(myDefVisualInfo);
++#if defined(HAVE_XLIB) || WAYLAND_COMPAT
++    if (!RUN_WAYLAND)
++    {
++      XFree(myDefVisualInfo);
++    }
+ #endif
+   }
+   myDefVisualInfo = theVisual;
+@@ -96,7 +106,7 @@ void Aspect_DisplayConnection::SetDefaultVisualInfo(Aspect_XVisualInfo* theVisua
+ 
+ void Aspect_DisplayConnection::Init(Aspect_XDisplay* theDisplay)
+ {
+-#if defined(HAVE_XLIB)
++#if defined(HAVE_XLIB) || WAYLAND_COMPAT
+   if (myDisplay != nullptr && myIsOwnDisplay)
+   {
+     XCloseDisplay((Display*)myDisplay);
+@@ -119,8 +129,12 @@ void Aspect_DisplayConnection::Init(Aspect_XDisplay* theDisplay)
+     myAtoms.Bind(Aspect_XA_DELETE_WINDOW,
+                  (uint64_t)XInternAtom((Display*)myDisplay, "WM_DELETE_WINDOW", False));
+   }
+-#else
+-  myDisplay      = theDisplay;
+-  myIsOwnDisplay = theDisplay == nullptr;
 +#endif
-+
-+#endif // _Standard_Macro_Runtime_HeaderFile
++#if !defined(HAVE_XLIB) || WAYLAND_COMPAT
++  if (!RUN_UNIX_X11)
++  {
++    myDisplay      = theDisplay;
++    myIsOwnDisplay = theDisplay == nullptr;
++  }
+ #endif
+ }
