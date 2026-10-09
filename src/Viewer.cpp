@@ -64,7 +64,7 @@ void Viewer::init(Class *) {
         occ.view->MustBeResized();
         occ.view->Invalidate();
         //@TODO familiarise and examine sub-view behaviours
-        for (const Handle(V3d_View) &sub_view : occ.view->Subviews()) {
+        for (const occ::handle<V3d_View> &sub_view : occ.view->Subviews()) {
             sub_view->MustBeResized();
             sub_view->Invalidate();
         }
@@ -146,7 +146,7 @@ void Viewer::init_window(int gtk_x, int gtk_y, float gtk_r) {
         occ.view->MustBeResized();
         occ.view->Invalidate();
         // @TODO We are at init - can there be subviews yet?
-        for (const Handle(V3d_View) &sub_view : occ.view->Subviews()) {
+        for (const occ::handle<V3d_View> &sub_view : occ.view->Subviews()) {
             sub_view->MustBeResized();
             sub_view->Invalidate();
         }
@@ -193,7 +193,7 @@ void Viewer::set_pixel_ratio(int gtk_x, float gtk_r) {
         occ.win->SetSize(fbo_sz.x(), fbo_sz.y());
         occ.view->MustBeResized();
         occ.view->Invalidate();
-        for (const Handle(V3d_View) &sub_view : occ.view->Subviews()) {
+        for (const occ::handle<V3d_View> &sub_view : occ.view->Subviews()) {
             sub_view->MustBeResized();
             sub_view->Invalidate();
             // @TODO Examine subview behaviours
@@ -313,8 +313,8 @@ void Viewer::set_default_scene() {
     occ.viewer->SetLightOn();
     occ.viewer->ActivateGrid(Aspect_GT_Rectangular, Aspect_GDM_Lines);
 
-    using ViewCube = Handle(AIS_ViewCube);
-    using AnimationCamera = Handle(AIS_AnimationCamera);
+    using ViewCube = occ::handle<AIS_ViewCube>;
+    using AnimationCamera = occ::handle<AIS_AnimationCamera>;
     ViewCube cube = new AIS_ViewCube();
     AnimationCamera camera = new AIS_AnimationCamera("default", occ.view);
     cube->SetViewAnimation(camera);
@@ -349,8 +349,8 @@ void Viewer::print_gl_info(bool verbose) {
 }
 
 void Viewer::divert_occ_printer() {
-    Handle(ViewerPrinter) printer = new ViewerPrinter;
-    Handle(Message_Messenger) messenger = Message::DefaultMessenger();
+    occ::handle<ViewerPrinter> printer = new ViewerPrinter;
+    occ::handle<Message_Messenger> messenger = Message::DefaultMessenger();
     messenger->ChangePrinters().Clear();
     messenger->AddPrinter(printer);
 }

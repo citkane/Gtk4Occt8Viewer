@@ -16,6 +16,12 @@
 #include <peel/Gtk/Gtk.h>
 #include <peel/class.h>
 
+#if OCCT_V < 8
+namespace occ {
+using opencascade::handle;
+}
+#endif
+
 namespace Gtk4 {
 namespace Occt8 {
 using namespace peel;
@@ -45,10 +51,10 @@ class Viewer final : public Gtk::GLArea {
     void set_default_scene();
 
     struct OCC {
-        Handle(Aspect_NeutralWindow) win;
-        Handle(V3d_Viewer) viewer;
-        Handle(V3d_View) view;
-        Handle(AIS_InteractiveContext) ctx;
+        occ::handle<Aspect_NeutralWindow> win;
+        occ::handle<V3d_Viewer> viewer;
+        occ::handle<V3d_View> view;
+        occ::handle<AIS_InteractiveContext> ctx;
         // @TODO - how to get a Handle on ViewController?
         ViewController *ctrl;
     } occ;
@@ -66,10 +72,10 @@ class Viewer final : public Gtk::GLArea {
     void divert_occ_printer();
 
     struct {
-        Handle(Aspect_DisplayConnection) disp;
-        Handle(OpenGl_FrameBuffer) fbo;
-        Handle(OpenGl_Context) ctx;
-        Handle(OpenGl_GraphicDriver) driver;
+        occ::handle<Aspect_DisplayConnection> disp;
+        occ::handle<OpenGl_FrameBuffer> fbo;
+        occ::handle<OpenGl_Context> ctx;
+        occ::handle<OpenGl_GraphicDriver> driver;
     } gl;
 
     Aspect_Drawable win_native;

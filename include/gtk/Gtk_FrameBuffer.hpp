@@ -4,25 +4,33 @@
 #include <OpenGl_Context.hxx>
 #include <OpenGl_FrameBuffer.hxx>
 
+#if OCCT_V < 8
+namespace occ {
+using opencascade::handle;
+}
+#endif
+
 namespace Gtk4 {
 namespace Occt8 {
 /**
  * Sets the offscreen OpenGl_FrameBuffer to SRGB colourspace
  * */
 class Gtk_FrameBuffer : public OpenGl_FrameBuffer {
-  DEFINE_STANDARD_RTTI_INLINE(Gtk_FrameBuffer, OpenGl_FrameBuffer)
-public:
-  virtual void BindBuffer(const Handle(OpenGl_Context) & ctx) override {
-    OpenGl_FrameBuffer::BindBuffer(ctx);
-    ctx->SetFrameBufferSRGB(true, false);
-  }
-  virtual void BindDrawBuffer(const Handle(OpenGl_Context) & ctx) override {
-    OpenGl_FrameBuffer::BindDrawBuffer(ctx);
-    ctx->SetFrameBufferSRGB(true, false);
-  }
-  virtual void BindReadBuffer(const Handle(OpenGl_Context) & ctx) override {
-    OpenGl_FrameBuffer::BindReadBuffer(ctx);
-  }
+    DEFINE_STANDARD_RTTI_INLINE(Gtk_FrameBuffer, OpenGl_FrameBuffer)
+  public:
+    virtual void BindBuffer(const occ::handle<OpenGl_Context> &ctx) override {
+        OpenGl_FrameBuffer::BindBuffer(ctx);
+        ctx->SetFrameBufferSRGB(true, false);
+    }
+    virtual void
+    BindDrawBuffer(const occ::handle<OpenGl_Context> &ctx) override {
+        OpenGl_FrameBuffer::BindDrawBuffer(ctx);
+        ctx->SetFrameBufferSRGB(true, false);
+    }
+    virtual void
+    BindReadBuffer(const occ::handle<OpenGl_Context> &ctx) override {
+        OpenGl_FrameBuffer::BindReadBuffer(ctx);
+    }
 };
 
 } // namespace Occt8

@@ -69,10 +69,10 @@ static void build_ui(Gio::Application *application) {
 
     // viewer->occ points to the OCCT API's:
     // {
-    //     Handle(Aspect_NeutralWindow) win;
-    //     Handle(V3d_Viewer) viewer;
-    //     Handle(V3d_View) view;
-    //     Handle(AIS_InteractiveContext) ctx;
+    //     occ::handle<Aspect_NeutralWindow> win;
+    //     occ::handle<V3d_Viewer> viewer;
+    //     occ::handle<V3d_View> view;
+    //     occ::handle<AIS_InteractiveContext> ctx;
     //     ViewController *ctrl;
     // }
 
@@ -156,4 +156,5 @@ This widget has implemented compositor switching as a run-time option, but it aw
 in OCCT to be practically usable in this way. Until then you will need to: 
 - compile both Wayland and X11 OCCT libraries and distribute two versions of your app with desired links, or
 - compile OCCT for X11 and use a XWayland fallback (while GTK still supports it).
+- Apply the patch in this repository root against OCCT-793 for full run-time switching
 
